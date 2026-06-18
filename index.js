@@ -11,6 +11,7 @@ const conversations = new Map();
 const processedMessages = new Set();
 const processingLocks = new Map();
 const replyCooldowns = new Map();
+const inFlightMessages = new Set();
 
 // Game constants (matching the game)
 const GENRES = ['pop', 'hip hop', 'rock', 'electronic', 'r&b', 'country', 'jazz', 'classical', 'indie', 'alternative'];
@@ -481,8 +482,8 @@ async function handleConversation(message, userMessage) {
       await message.reply('No active conversation to cancel.');
       return;
     } else {
-      // Fall through to AI chat - DISABLED due to duplicate response issues
-      await message.reply("I'm Tony, your Void Musician assistant. I can help you with game commands like:\n\n• create song\n• create album\n• book tour\n• upgrade studio\n• release song\n• market song\n• create video\n• create short\n• sign label\n• stats\n• advance week\n\nJust mention me with a command!");
+      // Fall through to AI chat
+      await handleChat(message, cleanMessage);
       return;
     }
   }
@@ -1290,10 +1291,19 @@ client.on('messageCreate', async (message) => {
   }
   processingLocks.set(userId, true);
 
+  // Check if message is already being processed (in-flight)
+  if (inFlightMessages.has(message.id)) {
+    console.log('Message already in-flight, skipping:', message.id);
+    processingLocks.delete(userId);
+    return;
+  }
+  inFlightMessages.add(message.id);
+
   // Prevent duplicate processing using message ID only
   console.log('Processing message:', message.id, 'Content:', message.content);
   if (processedMessages.has(message.id)) {
     console.log('Duplicate message detected, skipping:', message.id);
+    inFlightMessages.delete(message.id);
     processingLocks.delete(userId);
     return;
   }
@@ -1306,13 +1316,10 @@ client.on('messageCreate', async (message) => {
     processedMessages.delete(first);
   }
 
-  // Check if user is in cooldown (just replied recently)
-  const now = Date.now();
-  const lastReply = replyCooldowns.get(userId);
-  if (lastReply && now - lastReply < 5000) {
-    console.log('User in cooldown, skipping:', userId);
-    processingLocks.delete(userId);
-    return;
+  // Clean up old in-flight messages (keep last 100)
+  if (inFlightMessages.size > 100) {
+    const first = inFlightMessages.values().next().value;
+    inFlightMessages.delete(first);
   }
 
   try {
@@ -1376,6 +1383,8 @@ client.on('messageCreate', async (message) => {
   } finally {
     // Release the lock
     processingLocks.delete(userId);
+    // Remove from in-flight
+    inFlightMessages.delete(message.id);
     // Update cooldown
     replyCooldowns.set(userId, Date.now());
   }
