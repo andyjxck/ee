@@ -145,22 +145,22 @@ async function handleConversation(message, userMessage) {
 
 function detectIntent(message) {
   const lower = message.toLowerCase();
-  if (lower.includes('create song') || lower.includes('new song') || lower.includes('make song') || lower.includes('write song')) {
+  if (lower.includes('create') && lower.includes('song') || lower.includes('new song') || lower.includes('make song') || lower.includes('write song')) {
     return 'create_song';
   }
-  if (lower.includes('create album') || lower.includes('new album') || lower.includes('make album')) {
+  if (lower.includes('create') && lower.includes('album') || lower.includes('new album') || lower.includes('make album')) {
     return 'create_album';
   }
-  if (lower.includes('create merch') || lower.includes('new merch') || lower.includes('make merch') || lower.includes('design merch')) {
+  if (lower.includes('create') && lower.includes('merch') || lower.includes('new merch') || lower.includes('make merch') || lower.includes('design merch')) {
     return 'create_merch';
   }
-  if (lower.includes('book tour') || lower.includes('go on tour') || lower.includes('start tour')) {
+  if (lower.includes('book') && lower.includes('tour') || lower.includes('go on tour') || lower.includes('start tour')) {
     return 'book_tour';
   }
-  if (lower.includes('upgrade studio') || lower.includes('improve studio') || lower.includes('studio upgrade')) {
+  if (lower.includes('upgrade') && lower.includes('studio') || lower.includes('improve studio') || lower.includes('studio upgrade')) {
     return 'upgrade_studio';
   }
-  if (lower.includes('release song') || lower.includes('drop song') || lower.includes('publish song')) {
+  if (lower.includes('release') && lower.includes('song') || lower.includes('drop song') || lower.includes('publish song')) {
     return 'release_song';
   }
   if (lower.includes('market') || lower.includes('promote') || lower.includes('advertise')) {
@@ -172,13 +172,13 @@ function detectIntent(message) {
   if (lower.includes('short') || lower.includes('tiktok') || lower.includes('reels')) {
     return 'create_short';
   }
-  if (lower.includes('sign label') || lower.includes('join label') || lower.includes('label deal')) {
+  if (lower.includes('sign') && lower.includes('label') || lower.includes('join label') || lower.includes('label deal')) {
     return 'sign_label';
   }
   if (lower.includes('stats') || lower.includes('status') || lower.includes('progress') || lower.includes('how am i doing')) {
     return 'view_stats';
   }
-  if (lower.includes('advance week') || lower.includes('next week') || lower.includes('skip week') || lower.includes('end week')) {
+  if (lower.includes('advance') && lower.includes('week') || lower.includes('next week') || lower.includes('skip week') || lower.includes('end week')) {
     return 'advance_week';
   }
   if (lower === 'cancel' || lower === 'stop' || lower === 'nevermind') {
