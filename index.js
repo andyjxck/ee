@@ -1148,26 +1148,11 @@ async function continueSongMarketing(message, input, conversation) {
   switch (conversation.step) {
     case 'song_select':
       conversation.data.songTitle = input;
-      conversation.step = 'budget';
-      conversations.set(userId, conversation);
-      await message.reply(
-        `Song: **"${input}"**\n\n` +
-        'Marketing budget? (Amount in £)'
-      );
-      return;
-
-    case 'budget':
-      const budget = parseInt(input);
-      if (isNaN(budget) || budget < 0) {
-        await message.reply('Please enter a valid number (0 or higher).');
-        return;
-      }
-      conversation.data.budget = budget;
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
       await message.reply(
-        `Budget: £${budget.toLocaleString()}\n\n` +
-        'Confirm marketing campaign? (yes/no)'
+        `Song: **"${input}"**\n\n` +
+        'Marketing cost will be auto-calculated based on your fame.\n\nConfirm marketing campaign? (yes/no)'
       );
       return;
 
@@ -1176,7 +1161,7 @@ async function continueSongMarketing(message, input, conversation) {
         conversations.delete(userId);
         const result = await callEdgeFunction('market_song', {
           userId: message.author.id,
-          ...conversation.data
+          songTitle: conversation.data.songTitle
         });
         if (result.success) {
           await message.reply(`✅ **Marketing campaign launched!**\n\n${result.message}`);

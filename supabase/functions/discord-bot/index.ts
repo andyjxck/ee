@@ -516,7 +516,7 @@ async function executeGameCommand(command: string, params: any, careerId: string
     }
 
     case 'market_song': {
-      const { songTitle, budget } = params
+      const { songTitle } = params
 
       // Find the song
       const song = state.songs?.find((s: any) => s.title.toLowerCase() === songTitle.toLowerCase() && s.released)
@@ -525,17 +525,23 @@ async function executeGameCommand(command: string, params: any, careerId: string
         return { success: false, error: `Song "${songTitle}" not found or not released` }
       }
 
+      // Marketing cost scales with fame
+      const marketCost = Math.max(500, Math.floor((state.fame || 1) * 100))
+
       // Check cash
-      if (state.cash < budget) {
-        return { success: false, error: `Not enough cash. Need £${budget.toLocaleString()}` }
+      if (state.cash < marketCost) {
+        return { success: false, error: `Not enough cash. Need £${marketCost.toLocaleString()}, have £${state.cash.toLocaleString()}` }
       }
 
-      // Deduct cash and add marketing
-      await supabase.from('ms_careers').update({ cash: state.cash - budget }).eq('id', careerId)
+      // Deduct cash
+      await supabase.from('ms_careers').update({ cash: state.cash - marketCost }).eq('id', careerId)
+
+      // Calculate marketing boost (simplified)
+      const boost = Math.max(5, Math.min(35, Math.round(Math.random() * 18 + 10)))
 
       return {
         success: true,
-        message: `✅ **Marketing Campaign Launched!**\n\nSong: "${songTitle}"\nBudget: £${budget.toLocaleString()}\n\nYour song should see increased streams!`
+        message: `✅ **Marketing Campaign Launched!**\n\nSong: "${songTitle}"\nCost: £${marketCost.toLocaleString()}\nMarketing Boost: +${boost}\n\nYour song should see increased streams!`
       }
     }
 
