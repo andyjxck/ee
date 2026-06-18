@@ -88,6 +88,19 @@ function parseSongCreation(message) {
   return data;
 }
 
+function parseAlbumCreation(message) {
+  const data = {};
+  const lower = message.toLowerCase();
+
+  // Extract album title (in quotes or after "called" / "named")
+  const titleMatch = message.match(/(?:called|named)\s+"([^"]+)"|called\s+(\w+)/i);
+  if (titleMatch) {
+    data.title = titleMatch[1] || titleMatch[2];
+  }
+
+  return data;
+}
+
 function parseMerchCreation(message) {
   const data = {};
   const lower = message.toLowerCase();
@@ -163,6 +176,10 @@ function determineMissingStep(command, data) {
   }
   if (command === 'upgrade_studio') {
     if (!data.component) return 'component';
+    return 'confirm';
+  }
+  if (command === 'create_album') {
+    if (!data.title) return 'title';
     return 'confirm';
   }
   return 'confirm';
@@ -249,6 +266,25 @@ async function executeSongCreation(message, conversation) {
     await message.reply(`✅ **Song created!**\n\n${result.message}`);
   } else {
     await message.reply(`❌ **Error:** ${result.error}`);
+  }
+}
+
+// Handle each step of album creation
+async function handleAlbumStep(message, conversation) {
+  const { step, data } = conversation;
+
+  if (step === 'title') {
+    await message.reply(
+      '💿 **Let\'s create a new album!**\n\n' +
+      'What should the album be called?'
+    );
+  } else if (step === 'confirm') {
+    const summary = `
+**💿 Album Summary**
+Title: "${data.title}"
+
+Confirm album creation? (yes/no)`;
+    await message.reply(summary);
   }
 }
 
@@ -389,6 +425,16 @@ async function handleConversation(message, userMessage) {
       const conversation = conversations.get(userId);
       await handleSongStep(message, conversation);
       return;
+    } else if (intent === 'create_album') {
+      const parsedData = parseAlbumCreation(cleanMessage);
+      conversations.set(userId, {
+        step: determineMissingStep('create_album', parsedData),
+        data: parsedData,
+        command: 'create_album'
+      });
+      const conversation = conversations.get(userId);
+      await handleAlbumStep(message, conversation);
+      return;
     } else if (intent === 'create_merch') {
       const parsedData = parseMerchCreation(cleanMessage);
       conversations.set(userId, {
@@ -497,6 +543,9 @@ function detectIntent(message) {
   if ((lower.includes('create') && lower.includes('song')) || lower.includes('new song') || lower.includes('make song') || lower.includes('write song')) {
     return 'create_song';
   }
+  if ((lower.includes('create') && lower.includes('album')) || lower.includes('new album') || lower.includes('make album')) {
+    return 'create_album';
+  }
   if ((lower.includes('create') && lower.includes('merch')) || lower.includes('new merch') || lower.includes('make merch') || lower.includes('design merch')) {
     return 'create_merch';
   }
@@ -577,6 +626,9 @@ async function continueConversation(message, userMessage, conversation) {
   switch (conversation.command) {
     case 'create_song':
       await continueSongCreation(message, cleanMessage, conversation);
+      return;
+    case 'create_album':
+      await continueAlbumCreation(message, cleanMessage, conversation);
       return;
     case 'create_merch':
       await continueMerchCreation(message, cleanMessage, conversation);
@@ -765,12 +817,12 @@ async function continueAlbumCreation(message, input, conversation) {
   const userId = message.author.id;
 
   switch (conversation.step) {
-    case 'name':
+    case 'title':
       if (!input || input.length < 2) {
         await message.reply('Please enter a valid album name (at least 2 characters).');
         return;
       }
-      conversation.data.name = input;
+      conversation.data.title = input;
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
       await message.reply(
