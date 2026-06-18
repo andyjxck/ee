@@ -8,6 +8,7 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 // Conversation state tracker (in-memory, use Redis for production)
 const conversations = new Map();
+const processedMessages = new Set();
 
 // Game constants (matching the game)
 const GENRES = ['pop', 'hip hop', 'rock', 'electronic', 'r&b', 'country', 'jazz', 'classical', 'indie', 'alternative'];
@@ -914,6 +915,20 @@ async function handleChat(message, userMessage) {
 client.on('messageCreate', async (message) => {
   // Ignore bot messages
   if (message.author.bot) return;
+
+  // Prevent duplicate processing
+  const messageId = message.id;
+  if (processedMessages.has(messageId)) {
+    console.log('Duplicate message detected, skipping:', messageId);
+    return;
+  }
+  processedMessages.add(messageId);
+
+  // Clean up old message IDs (keep last 1000)
+  if (processedMessages.size > 1000) {
+    const first = processedMessages.values().next().value;
+    processedMessages.delete(first);
+  }
 
   // Handle DMs
   if (message.channel.type === 1) { // DM
