@@ -19,6 +19,31 @@ const TOUR_VENUES = ['open-mic', 'local-bar', 'small-club', 'mid-venue', 'theatr
 const FESTIVAL_TYPES = ['local', 'mid', 'major', 'elite'];
 const STUDIO_COMPONENTS = ['mixing', 'vocals', 'mastering', 'studioMonitors', 'acoustics'];
 
+// AI artist feature costs (simplified - based on tier)
+const FEATURE_COSTS = {
+  'Sailor Twift': 50000,
+  'Shed Eeran': 45000,
+  'Good Bunny': 48000,
+  'Dshovel': 42000,
+  'Billy Eyelash': 46000,
+  'Arianda Grandeur': 47000,
+  'The Weaknd': 44000,
+  'Candy West': 43000,
+  'Rianna': 49000,
+  'Bruno Bars': 41000,
+  'Dustin Bieber': 40000,
+  'M&M': 38000,
+  'Beyonder': 50000,
+  'Michael Jacket': 49000,
+  'Elfish Presley': 47000,
+  'Rob Marley': 45000,
+  'Maradona': 43000,
+  'The Beetles': 48000,
+  'Draft Punk': 46000,
+  'Stellar Voice': 35000,
+  'Melody Queen': 34000
+};
+
 // Message parser - extracts information from natural language
 function parseSongCreation(message) {
   const data = {};
@@ -190,18 +215,20 @@ async function handleSongStep(message, conversation) {
       'Add to an album? (Enter album name or "no" for standalone single)'
     );
   } else if (step === 'confirm') {
+    const featureCost = (data.features || []).reduce((sum, feature) => sum + (FEATURE_COSTS[feature] || 0), 0);
+    const totalCost = (data.producerCost || 0) + (data.writerCost || 0) + (data.studioCost || 0) + featureCost;
     const summary = `
 **🎵 Song Summary**
 Title: "${data.title}"
 Genre: ${data.genre}
 Explicit: ${data.explicit ? 'Yes' : 'No'}
-Features: ${data.features.join(', ')}
-Producer: £${data.producerCost.toLocaleString()}
-Writer: £${data.writerCost.toLocaleString()}
-Studio: £${data.studioCost.toLocaleString()}
+Features: ${data.features.join(', ')} (£${featureCost.toLocaleString()})
+Producer: £${(data.producerCost || 0).toLocaleString()}
+Writer: £${(data.writerCost || 0).toLocaleString()}
+Studio: £${(data.studioCost || 0).toLocaleString()}
 Album: ${data.albumTitle || 'Standalone single'}
 
-Total cost: £${(data.producerCost + data.writerCost + data.studioCost).toLocaleString()}
+Total cost: £${totalCost.toLocaleString()}
 
 Confirm? (yes/no)`;
     await message.reply(summary);
