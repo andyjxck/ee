@@ -13,6 +13,10 @@ const rateLimits = new Map<string, { count: number; resetTime: number }>()
 const RATE_LIMIT_WINDOW = 60000 // 1 minute
 const RATE_LIMIT_MAX = 10 // 10 commands per minute
 
+// Conversation history for AI chat (for production, use Redis)
+const conversationHistory = new Map<string, Array<{ role: string; content: string }>>()
+const MAX_HISTORY_LENGTH = 10
+
 function checkRateLimit(userId: string): boolean {
   const now = Date.now()
   const userLimit = rateLimits.get(userId)
@@ -37,22 +41,18 @@ async function verifyDiscordRequest(request: Request): Promise<{ valid: boolean;
 }
 
 // Groq API for AI responses
-async function getGroqResponse(message: string, context: string): Promise<string> {
+async function getGroqResponse(message: string, context: string, userId: string): Promise<string> {
   try {
     console.log('Groq API key present:', !!groqApiKey)
 
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${groqApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
-        messages: [
-          {
-            role: 'system',
-            content: `You are Tony, a helpful Discord bot for Void Musician, a music career simulator game. You are knowledgeable about all aspects of the game and can answer questions about gameplay, mechanics, strategy, and features.
+    // Get or create conversation history
+    let history = conversationHistory.get(userId) || []
+    
+    // Build messages array with system prompt and history
+    const messages = [
+      {
+        role: 'system',
+        content: `You are Tony, a helpful Discord bot for Void Musician, a music career simulator game. You are knowledgeable about all aspects of the game and can answer questions about gameplay, mechanics, strategy, and features.
 
             **Important:** Never output your thought process or reasoning. Only provide the final response directly to the user.
 
@@ -95,18 +95,30 @@ async function getGroqResponse(message: string, context: string): Promise<string
             - If the user wants to perform a game action, guide them to use the conversational commands
             - Keep responses concise but informative
             - You can discuss the game even if the user is just chatting
+            - Remember previous messages in the conversation to maintain context
 
             **Available conversational commands:**
             - create song, create album, create merch, book tour
             - upgrade studio, release song, market song
             - create video, create short, sign label
             - stats, advance week`
-          },
-          {
-            role: 'user',
-            content: message
-          }
-        ],
+      },
+      ...history,
+      {
+        role: 'user',
+        content: message
+      }
+    ]
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${groqApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        messages,
         max_tokens: 500,
         temperature: 0.7,
       }),
@@ -126,6 +138,17 @@ async function getGroqResponse(message: string, context: string): Promise<string
     // Strip "Here's a thinking process:" format
     content = content.replace(/Here's a thinking process:[\s\S]*?(?=Ready\.|Output matches|Final Polish)/gi, '')
     content = content.trim()
+    
+    // Update conversation history
+    history.push({ role: 'user', content: message })
+    history.push({ role: 'assistant', content: content })
+    
+    // Trim history to max length
+    if (history.length > MAX_HISTORY_LENGTH * 2) {
+      history = history.slice(-MAX_HISTORY_LENGTH * 2)
+    }
+    
+    conversationHistory.set(userId, history)
     
     return content
   } catch (error) {
@@ -708,7 +731,7 @@ serve(async (req) => {
         }
       }
       
-      const response = await getGroqResponse(message, context)
+      const response = await getGroqResponse(message, context, userId)
       
       return new Response(JSON.stringify({ success: true, response }), {
         headers: { 'Content-Type': 'application/json' }
