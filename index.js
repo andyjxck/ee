@@ -399,6 +399,21 @@ Confirm album creation? (yes/no)`;
   }
 }
 
+// Execute album creation when confirmed
+async function executeAlbumCreation(message, conversation) {
+  const userId = message.author.id;
+  conversations.delete(userId);
+  const result = await callEdgeFunction('create_album', {
+    userId: message.author.id,
+    ...conversation.data
+  });
+  if (result.success) {
+    await message.reply(`✅ **Album created!**\n\n${result.message}`);
+  } else {
+    await message.reply(`❌ **Error:** ${result.error}`);
+  }
+}
+
 // Handle each step of merch creation
 async function handleMerchStep(message, conversation) {
   const { step, data } = conversation;
@@ -699,6 +714,7 @@ async function continueConversation(message, userMessage, conversation) {
   console.log('Continue - Before strip:', userMessage);
   const cleanMessage = userMessage.replace(BOT_MENTION_REGEX, '').trim();
   console.log('Continue - After strip:', cleanMessage);
+  console.log('Continue - Conversation:', JSON.stringify(conversation));
   const lower = cleanMessage.toLowerCase().trim();
 
   // Check for cancel or help FIRST
@@ -724,6 +740,8 @@ async function continueConversation(message, userMessage, conversation) {
         await executeTourBooking(message, conversation);
       } else if (conversation.command === 'upgrade_studio') {
         await executeStudioUpgrade(message, conversation);
+      } else if (conversation.command === 'create_album') {
+        await executeAlbumCreation(message, conversation);
       }
       return;
     } else if (lower === 'no' || lower === 'n') {
