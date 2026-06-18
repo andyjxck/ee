@@ -133,13 +133,17 @@ client.on('messageCreate', async (message) => {
       return message.reply(
         '**Tony Bot Commands**\n\n' +
         '`/link <career_id> <auth_code>` - Link your Discord account to your game\n' +
-        'Get your Career ID from Settings.\n' +
-        'Get your Auth Code from Settings (changes every 30 seconds).\n\n' +
+        'Get your Career ID from Settings.\n\n' +
         '**After linking, use these in any server:**\n' +
-        '`@tony link my account` - Get link instructions\n' +
         '`@tony help` - Show this help message\n' +
+        '`@tony link my account` - Get link instructions\n' +
         '`@tony <any message>` - Chat with Tony (AI assistant)\n\n' +
-        'Tony can help you manage your music career through Discord!'
+        '**What Tony can do:**\n' +
+        '• Answer questions about your music career\n' +
+        '• Provide game advice and tips\n' +
+        '• Help with strategy and decisions\n' +
+        '• View your stats and progress\n\n' +
+        'More features coming soon!'
       );
     }
     
