@@ -846,7 +846,7 @@ async function callEdgeFunction(type, data) {
 }
 
 // Regex to match bot mentions
-const BOT_MENTION_REGEX = /<@!?(\d+)>/;
+const BOT_MENTION_REGEX = /<@!?(\d+)>|@tony/gi;
 
 // Handle link command in DM
 async function handleLinkCommand(message, args) {
