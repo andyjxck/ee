@@ -11,6 +11,8 @@ console.log('Environment check:');
 console.log('DISCORD_TOKEN exists:', !!DISCORD_TOKEN);
 console.log('DISCORD_TOKEN length:', DISCORD_TOKEN ? DISCORD_TOKEN.length : 0);
 console.log('SUPABASE_EDGE_FUNCTION_URL exists:', !!SUPABASE_EDGE_FUNCTION_URL);
+console.log('SUPABASE_ANON_KEY exists:', !!SUPABASE_ANON_KEY);
+console.log('SUPABASE_ANON_KEY length:', SUPABASE_ANON_KEY ? SUPABASE_ANON_KEY.length : 0);
 
 // Create Discord client
 const client = new Client({
@@ -26,6 +28,9 @@ const client = new Client({
 // Helper: Call Edge Function
 async function callEdgeFunction(type, data) {
   try {
+    console.log('Calling Edge Function:', { type, data: { ...data, authCode: '***' } });
+    console.log('URL:', SUPABASE_EDGE_FUNCTION_URL);
+    console.log('Has ANON_KEY:', !!SUPABASE_ANON_KEY);
     const response = await axios.post(SUPABASE_EDGE_FUNCTION_URL, {
       type,
       data,
@@ -36,9 +41,11 @@ async function callEdgeFunction(type, data) {
         'apikey': SUPABASE_ANON_KEY,
       },
     });
+    console.log('Edge Function response:', response.data);
     return response.data;
   } catch (error) {
     console.error('Edge Function error:', error.response?.data || error.message);
+    console.error('Full error:', error);
     return { success: false, error: 'Failed to connect to game server' };
   }
 }
