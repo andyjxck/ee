@@ -14,7 +14,25 @@ const replyCooldowns = new Map();
 const inFlightMessages = new Set();
 
 // Game constants (matching the game)
-const GENRES = ['pop', 'hip hop', 'rock', 'electronic', 'r&b', 'country', 'jazz', 'classical', 'indie', 'alternative'];
+const GENRE_TREE = [
+  { genre: 'Pop', subgenres: ['Pop', 'Dance Pop', 'Synth Pop', 'Indie Pop', 'Art Pop', 'Dream Pop', 'Electropop', 'Bubblegum Pop', 'Hyperpop', 'K-Pop', 'J-Pop', 'Latin Pop', 'Arabic Pop', 'Afropop', 'City Pop', 'Chill Pop', 'Bedroom Pop'] },
+  { genre: 'Hip Hop', subgenres: ['Hip Hop', 'Trap', 'Drill', 'Boom Bap', 'Cloud Rap', 'Emo Rap', 'Gangsta Rap', 'Conscious Hip Hop', 'Jazz Rap', 'Alternative Hip Hop', 'Grime', 'UK Drill', 'Phonk', 'Mumble Rap', 'Trap Metal'] },
+  { genre: 'R&B', subgenres: ['R&B', 'Contemporary R&B', 'Neo-Soul', 'Alternative R&B', 'PBR&B', 'Soul', 'Funk', 'Motown', 'Quiet Storm', 'New Jack Swing', 'Gospel R&B', 'Smooth R&B'] },
+  { genre: 'Rock', subgenres: ['Rock', 'Alternative Rock', 'Indie Rock', 'Pop Rock', 'Punk Rock', 'Hard Rock', 'Classic Rock', 'Psychedelic Rock', 'Grunge', 'Shoegaze', 'Post-Rock', 'Math Rock', 'Art Rock', 'Garage Rock', 'Arena Rock', 'Soft Rock', 'Folk Rock'] },
+  { genre: 'Electronic', subgenres: ['Electronic', 'House', 'Techno', 'Dubstep', 'Trance', 'Drum & Bass', 'Ambient', 'IDM', 'Synthwave', 'Electronica', 'Glitch Hop', 'Future Bass', 'Hardstyle', 'Breakbeat', 'Downtempo', 'Chillwave', 'Vaporwave', 'UK Bass'] },
+  { genre: 'Metal', subgenres: ['Metal', 'Heavy Metal', 'Death Metal', 'Black Metal', 'Doom Metal', 'Sludge Metal', 'Post-Metal', 'Nu-Metal', 'Djent', 'Thrash Metal', 'Speed Metal', 'Power Metal', 'Symphonic Metal', 'Folk Metal', 'Industrial Metal'] },
+  { genre: 'Jazz', subgenres: ['Jazz', 'Jazz Fusion', 'Bebop', 'Cool Jazz', 'Free Jazz', 'Acid Jazz', 'Nu-Jazz', 'Nocturne Jazz', 'Smooth Jazz', 'Afro-Cuban Jazz', 'Modal Jazz', 'Post-Bop'] },
+  { genre: 'Classical', subgenres: ['Classical', 'Neo-Classical', 'Contemporary Classical', 'Minimalist', 'Post-Chamber', 'Orchestral', 'Chamber Music', 'Opera', 'Baroque', 'Romantic', 'Avant-Garde Classical'] },
+  { genre: 'Country', subgenres: ['Country', 'Country Pop', 'Outlaw Country', 'Bluegrass', 'Americana', 'Country Rock', 'Alt-Country', 'Honky Tonk', 'Country Trap', 'Folk Country'] },
+  { genre: 'Folk / Acoustic', subgenres: ['Folk', 'Indie Folk', 'Folk Pop', 'Singer-Songwriter', 'Acoustic', 'Freak Folk', 'Anti-Folk', 'Celtic Folk', 'Contemporary Folk'] },
+  { genre: 'World', subgenres: ['Afrobeats', 'Afropop', 'Amapiano', 'Reggaeton', 'Latin Pop', 'Salsa', 'Bossa Nova', 'Samba', 'Reggae', 'Dancehall', 'Cumbia', 'Baile Funk', 'Highlife', 'Jùjú', 'Mbalax', 'Bhangra', 'Bollywood', 'K-Wave', 'J-Rock', 'Fado', 'Flamenco'] },
+  { genre: 'Experimental', subgenres: ['Experimental', 'Avant-Garde', 'Noise', 'Drone', 'Musique Concrète', 'Glitch', 'Voidwave', 'Synthcore', 'Neon Soul', 'Hypnagogic Pop', 'Deconstructed Club', 'Hauntology'] },
+  { genre: 'Punk', subgenres: ['Punk', 'Punk Revival', 'Post-Punk', 'Hardcore Punk', 'Pop-Punk', 'Ska-Punk', 'Anarcho-Punk', 'Crust Punk', 'Riot Grrrl', 'Queercore'] },
+  { genre: 'Dance', subgenres: ['Dance', 'EDM', 'Disco', 'Nu-Disco', 'Funk', 'Club', 'Eurodance', 'Hi-NRG', 'Italo Disco', 'Electro'] },
+];
+
+// Flat list of all genres for easy lookup
+const GENRES = GENRE_TREE.flatMap(g => g.subgenres);
 const SONG_FEATURES = ['Sailor Twift', 'Shed Eeran', 'Good Bunny', 'Dshovel', 'Billy Eyelash', 'Arianda Grandeur', 'The Weaknd', 'Candy West', 'Rianna', 'Bruno Bars', 'Dustin Bieber', 'M&M', 'Beyonder', 'Michael Jacket', 'Elfish Presley', 'Rob Marley', 'Maradona', 'The Beetles', 'Draft Punk', 'Stellar Voice', 'Melody Queen'];
 const MERCH_TYPES = ['tshirt', 'hoodie', 'poster', 'vinyl', 'cap', 'jacket', 'figurine', 'fragrance', 'sneakers'];
 const TOUR_VENUES = ['open-mic', 'local-bar', 'small-club', 'mid-venue', 'theatre', 'arena', 'stadium', 'world-tour'];
