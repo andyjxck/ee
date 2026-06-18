@@ -117,10 +117,7 @@ function determineMissingStep(command, data) {
   if (command === 'create_song') {
     if (!data.title) return 'title';
     if (!data.genre) return 'genre';
-    // Default explicit to false if not specified
-    if (data.explicit === undefined) {
-      data.explicit = false;
-    }
+    if (data.explicit === undefined) return 'explicit';
     if (!data.features) return 'features';
     if (data.producerCost === undefined) return 'producer';
     if (data.writerCost === undefined) return 'writer';
