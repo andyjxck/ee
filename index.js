@@ -11,6 +11,8 @@ console.log('Environment check:');
 console.log('DISCORD_TOKEN exists:', !!DISCORD_TOKEN);
 console.log('DISCORD_TOKEN length:', DISCORD_TOKEN ? DISCORD_TOKEN.length : 0);
 console.log('SUPABASE_EDGE_FUNCTION_URL exists:', !!SUPABASE_EDGE_FUNCTION_URL);
+console.log('SUPABASE_ANON_KEY exists:', !!SUPABASE_ANON_KEY);
+console.log('SUPABASE_ANON_KEY length:', SUPABASE_ANON_KEY ? SUPABASE_ANON_KEY.length : 0);
 
 // Create Discord client
 const client = new Client({
