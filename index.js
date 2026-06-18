@@ -21,6 +21,44 @@ const TOUR_VENUES = ['open-mic', 'local-bar', 'small-club', 'mid-venue', 'theatr
 const FESTIVAL_TYPES = ['local', 'mid', 'major', 'elite'];
 const STUDIO_COMPONENTS = ['mixing', 'vocals', 'mastering', 'studioMonitors', 'acoustics'];
 
+// Producer options (index-based)
+const PRODUCERS = [
+  { name: 'Self', cost: 0, qualityBoost: 0, minFame: 0 },
+  { name: 'Bedroom Mike', cost: 2000, qualityBoost: 18, minFame: 0 },
+  { name: 'Voidsmith', cost: 8000, qualityBoost: 28, minFame: 5 },
+  { name: 'Astraea', cost: 25000, qualityBoost: 38, minFame: 12 },
+  { name: 'PhaseShift', cost: 60000, qualityBoost: 48, minFame: 20 },
+  { name: 'Noir Labs', cost: 150000, qualityBoost: 58, minFame: 30 },
+  { name: 'Dreamhold', cost: 350000, qualityBoost: 67, minFame: 45 },
+  { name: 'Neural Bloom', cost: 700000, qualityBoost: 75, minFame: 60 },
+  { name: 'Obsidian Sound', cost: 1500000, qualityBoost: 83, minFame: 75 },
+  { name: 'Void Architect', cost: 4000000, qualityBoost: 92, minFame: 90 },
+];
+
+// Writer options (index-based)
+const WRITERS = [
+  { name: 'Self', cost: 0, lyricBoost: 0, minFame: 0 },
+  { name: 'Notepad Nate', cost: 1500, lyricBoost: 16, minFame: 0 },
+  { name: 'Lyric Ghost', cost: 6000, lyricBoost: 26, minFame: 5 },
+  { name: 'Verse Machine', cost: 20000, lyricBoost: 36, minFame: 12 },
+  { name: 'Ink Prophet', cost: 50000, lyricBoost: 46, minFame: 20 },
+  { name: 'Word Architect', cost: 120000, lyricBoost: 56, minFame: 30 },
+  { name: 'Phantom Pen', cost: 280000, lyricBoost: 65, minFame: 45 },
+  { name: 'Echo Scribe', cost: 600000, lyricBoost: 74, minFame: 60 },
+  { name: 'Void Poet', cost: 1800000, lyricBoost: 105, minFame: 95 },
+];
+
+// Studio options (index-based)
+const STUDIOS = [
+  { name: 'Your Studio', cost: 0, studioBoost: 0 },
+  { name: 'Garage Booth', cost: 1000, studioBoost: 15 },
+  { name: 'District 7 Loft', cost: 8000, studioBoost: 28 },
+  { name: 'Noir Labs HQ', cost: 30000, studioBoost: 42 },
+  { name: 'Crystal Room', cost: 100000, studioBoost: 56 },
+  { name: 'Obsidian Tower', cost: 300000, studioBoost: 70 },
+  { name: 'Void Citadel', cost: 1600000, studioBoost: 105 },
+];
+
 // AI artist feature costs (simplified - based on tier)
 const FEATURE_COSTS = {
   'Sailor Twift': 50000,
@@ -78,11 +116,29 @@ function parseSongCreation(message) {
   // Extract explicit
   data.explicit = lower.includes('explicit');
 
-  // Extract producer/writer/studio (myself/self = 0 cost)
+  // Extract producer by name
+  const producerMatch = PRODUCERS.find((p, i) => lower.includes(p.name.toLowerCase()));
+  if (producerMatch) {
+    data.producerIndex = PRODUCERS.indexOf(producerMatch);
+  }
+
+  // Extract writer by name
+  const writerMatch = WRITERS.find((w, i) => lower.includes(w.name.toLowerCase()));
+  if (writerMatch) {
+    data.writerIndex = WRITERS.indexOf(writerMatch);
+  }
+
+  // Extract studio by name
+  const studioMatch = STUDIOS.find((s, i) => lower.includes(s.name.toLowerCase()));
+  if (studioMatch) {
+    data.studioIndex = STUDIOS.indexOf(studioMatch);
+  }
+
+  // Extract "myself/self" as index 0
   if (lower.includes('myself') || lower.includes('self') || lower.includes('my studio')) {
-    data.producerCost = 0;
-    data.writerCost = 0;
-    data.studioCost = 0;
+    data.producerIndex = 0;
+    data.writerIndex = 0;
+    data.studioIndex = 0;
   }
 
   return data;
@@ -159,9 +215,9 @@ function determineMissingStep(command, data) {
     if (!data.genre) return 'genre';
     if (data.explicit === undefined) return 'explicit';
     if (!data.features) return 'features';
-    if (data.producerCost === undefined) return 'producer';
-    if (data.writerCost === undefined) return 'writer';
-    if (data.studioCost === undefined) return 'studio';
+    if (data.producerIndex === undefined) return 'producer';
+    if (data.writerIndex === undefined) return 'writer';
+    if (data.studioIndex === undefined) return 'studio';
     return 'confirm';
   }
   if (command === 'create_merch') {
@@ -214,37 +270,43 @@ async function handleSongStep(message, conversation) {
       '(You can list multiple, separated by commas)'
     );
   } else if (step === 'producer') {
+    const producerList = PRODUCERS.map((p, i) => `${i}. ${p.name} (£${p.cost.toLocaleString()})`).join('\n');
     await message.reply(
       `Features: **${data.features.join(', ')}**\n\n` +
-      'Producer budget? (Amount in £, e.g., "5000" or "0" for no producer)'
+      'Choose a producer:\n' + producerList + '\n\n(Say the number or name)'
     );
   } else if (step === 'writer') {
+    const writerList = WRITERS.map((w, i) => `${i}. ${w.name} (£${w.cost.toLocaleString()})`).join('\n');
     await message.reply(
-      `Producer budget: £${data.producerCost.toLocaleString()}\n\n` +
-      'Writer budget? (Amount in £, e.g., "3000" or "0" for no writer)'
+      `Producer: **${PRODUCERS[data.producerIndex || 0].name}**\n\n` +
+      'Choose a writer:\n' + writerList + '\n\n(Say the number or name)'
     );
   } else if (step === 'studio') {
+    const studioList = STUDIOS.map((s, i) => `${i}. ${s.name} (£${s.cost.toLocaleString()})`).join('\n');
     await message.reply(
-      `Writer budget: £${data.writerCost.toLocaleString()}\n\n` +
-      'Studio budget? (Amount in £, e.g., "2000" or "0" for default studio)'
+      `Writer: **${WRITERS[data.writerIndex || 0].name}**\n\n` +
+      'Choose a studio:\n' + studioList + '\n\n(Say the number or name)'
     );
   } else if (step === 'album') {
     await message.reply(
-      `Studio budget: £${data.studioCost.toLocaleString()}\n\n` +
+      `Studio: **${STUDIOS[data.studioIndex || 0].name}**\n\n` +
       'Add to an album? (Enter album name or "no" for standalone single)'
     );
   } else if (step === 'confirm') {
     const featureCost = (data.features || []).reduce((sum, feature) => sum + (FEATURE_COSTS[feature] || 0), 0);
-    const totalCost = (data.producerCost || 0) + (data.writerCost || 0) + (data.studioCost || 0) + featureCost;
+    const producer = PRODUCERS[data.producerIndex || 0];
+    const writer = WRITERS[data.writerIndex || 0];
+    const studio = STUDIOS[data.studioIndex || 0];
+    const totalCost = producer.cost + writer.cost + studio.cost + featureCost;
     const summary = `
 **🎵 Song Summary**
 Title: "${data.title}"
 Genre: ${data.genre}
 Explicit: ${data.explicit ? 'Yes' : 'No'}
 Features: ${data.features.join(', ')} (£${featureCost.toLocaleString()})
-Producer: £${(data.producerCost || 0).toLocaleString()}
-Writer: £${(data.writerCost || 0).toLocaleString()}
-Studio: £${(data.studioCost || 0).toLocaleString()}
+Producer: ${producer.name} (£${producer.cost.toLocaleString()})
+Writer: ${writer.name} (£${writer.cost.toLocaleString()})
+Studio: ${studio.name} (£${studio.cost.toLocaleString()})
 Album: ${data.albumTitle || 'Standalone single'}
 
 Total cost: £${totalCost.toLocaleString()}
@@ -717,53 +779,59 @@ async function continueSongCreation(message, input, conversation) {
       conversation.data.features = selectedFeatures;
       conversation.step = 'producer';
       conversations.set(userId, conversation);
+      const producerList = PRODUCERS.map((p, i) => `${i}. ${p.name} (£${p.cost.toLocaleString()})`).join('\n');
       await message.reply(
         `Features: **${selectedFeatures.join(', ')}**\n\n` +
-        'Producer budget? (Amount in £, e.g., "5000" or "0" for no producer)'
+        'Choose a producer:\n' + producerList + '\n\n(Say the number or name)'
       );
       return;
 
     case 'producer':
-      const producerCost = parseInt(input);
-      if (isNaN(producerCost) || producerCost < 0) {
-        await message.reply('Please enter a valid number (0 or higher).');
+      const producerIndex = parseInt(input);
+      const producerMatch = PRODUCERS.find((p, i) => i === producerIndex || p.name.toLowerCase() === input.toLowerCase());
+      if (!producerMatch) {
+        await message.reply('Please choose a valid producer (number or name).');
         return;
       }
-      conversation.data.producerCost = producerCost;
+      conversation.data.producerIndex = PRODUCERS.indexOf(producerMatch);
       conversation.step = 'writer';
       conversations.set(userId, conversation);
+      const writerList = WRITERS.map((w, i) => `${i}. ${w.name} (£${w.cost.toLocaleString()})`).join('\n');
       await message.reply(
-        `Producer budget: £${producerCost.toLocaleString()}\n\n` +
-        'Writer budget? (Amount in £, e.g., "3000" or "0" for no writer)'
+        `Producer: **${producerMatch.name}**\n\n` +
+        'Choose a writer:\n' + writerList + '\n\n(Say the number or name)'
       );
       return;
 
     case 'writer':
-      const writerCost = parseInt(input);
-      if (isNaN(writerCost) || writerCost < 0) {
-        await message.reply('Please enter a valid number (0 or higher).');
+      const writerIndex = parseInt(input);
+      const writerMatch = WRITERS.find((w, i) => i === writerIndex || w.name.toLowerCase() === input.toLowerCase());
+      if (!writerMatch) {
+        await message.reply('Please choose a valid writer (number or name).');
         return;
       }
-      conversation.data.writerCost = writerCost;
+      conversation.data.writerIndex = WRITERS.indexOf(writerMatch);
       conversation.step = 'studio';
       conversations.set(userId, conversation);
+      const studioList = STUDIOS.map((s, i) => `${i}. ${s.name} (£${s.cost.toLocaleString()})`).join('\n');
       await message.reply(
-        `Writer budget: £${writerCost.toLocaleString()}\n\n` +
-        'Studio budget? (Amount in £, e.g., "2000" or "0" for default studio)'
+        `Writer: **${writerMatch.name}**\n\n` +
+        'Choose a studio:\n' + studioList + '\n\n(Say the number or name)'
       );
       return;
 
     case 'studio':
-      const studioCost = parseInt(input);
-      if (isNaN(studioCost) || studioCost < 0) {
-        await message.reply('Please enter a valid number (0 or higher).');
+      const studioIndex = parseInt(input);
+      const studioMatch = STUDIOS.find((s, i) => i === studioIndex || s.name.toLowerCase() === input.toLowerCase());
+      if (!studioMatch) {
+        await message.reply('Please choose a valid studio (number or name).');
         return;
       }
-      conversation.data.studioCost = studioCost;
+      conversation.data.studioIndex = STUDIOS.indexOf(studioMatch);
       conversation.step = 'album';
       conversations.set(userId, conversation);
       await message.reply(
-        `Studio budget: £${studioCost.toLocaleString()}\n\n` +
+        `Studio: **${studioMatch.name}**\n\n` +
         'Add to an album? (Enter album name or "no" for standalone single)'
       );
       return;
@@ -776,18 +844,23 @@ async function continueSongCreation(message, input, conversation) {
       }
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
+      const featureCost = (conversation.data.features || []).reduce((sum, feature) => sum + (FEATURE_COSTS[feature] || 0), 0);
+      const producer = PRODUCERS[conversation.data.producerIndex || 0];
+      const writer = WRITERS[conversation.data.writerIndex || 0];
+      const studio = STUDIOS[conversation.data.studioIndex || 0];
+      const totalCost = producer.cost + writer.cost + studio.cost + featureCost;
       const summary = `
 **🎵 Song Summary**
 Title: "${conversation.data.title}"
 Genre: ${conversation.data.genre}
 Explicit: ${conversation.data.explicit ? 'Yes' : 'No'}
-Features: ${conversation.data.features.join(', ')}
-Producer: £${conversation.data.producerCost.toLocaleString()}
-Writer: £${conversation.data.writerCost.toLocaleString()}
-Studio: £${conversation.data.studioCost.toLocaleString()}
+Features: ${conversation.data.features.join(', ')} (£${featureCost.toLocaleString()})
+Producer: ${producer.name} (£${producer.cost.toLocaleString()})
+Writer: ${writer.name} (£${writer.cost.toLocaleString()})
+Studio: ${studio.name} (£${studio.cost.toLocaleString()})
 Album: ${conversation.data.albumTitle || 'Standalone single'}
 
-Total cost: £${(conversation.data.producerCost + conversation.data.writerCost + conversation.data.studioCost).toLocaleString()}
+Total cost: £${totalCost.toLocaleString()}
 
 Confirm? (yes/no)`;
       await message.reply(summary);

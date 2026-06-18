@@ -17,6 +17,44 @@ const RATE_LIMIT_MAX = 10 // 10 commands per minute
 const conversationHistory = new Map<string, Array<{ role: string; content: string }>>()
 const MAX_HISTORY_LENGTH = 10
 
+// Producer options (index-based)
+const PRODUCERS = [
+  { name: 'Self', cost: 0, qualityBoost: 0, minFame: 0 },
+  { name: 'Bedroom Mike', cost: 2000, qualityBoost: 18, minFame: 0 },
+  { name: 'Voidsmith', cost: 8000, qualityBoost: 28, minFame: 5 },
+  { name: 'Astraea', cost: 25000, qualityBoost: 38, minFame: 12 },
+  { name: 'PhaseShift', cost: 60000, qualityBoost: 48, minFame: 20 },
+  { name: 'Noir Labs', cost: 150000, qualityBoost: 58, minFame: 30 },
+  { name: 'Dreamhold', cost: 350000, qualityBoost: 67, minFame: 45 },
+  { name: 'Neural Bloom', cost: 700000, qualityBoost: 75, minFame: 60 },
+  { name: 'Obsidian Sound', cost: 1500000, qualityBoost: 83, minFame: 75 },
+  { name: 'Void Architect', cost: 4000000, qualityBoost: 92, minFame: 90 },
+]
+
+// Writer options (index-based)
+const WRITERS = [
+  { name: 'Self', cost: 0, lyricBoost: 0, minFame: 0 },
+  { name: 'Notepad Nate', cost: 1500, lyricBoost: 16, minFame: 0 },
+  { name: 'Lyric Ghost', cost: 6000, lyricBoost: 26, minFame: 5 },
+  { name: 'Verse Machine', cost: 20000, lyricBoost: 36, minFame: 12 },
+  { name: 'Ink Prophet', cost: 50000, lyricBoost: 46, minFame: 20 },
+  { name: 'Word Architect', cost: 120000, lyricBoost: 56, minFame: 30 },
+  { name: 'Phantom Pen', cost: 280000, lyricBoost: 65, minFame: 45 },
+  { name: 'Echo Scribe', cost: 600000, lyricBoost: 74, minFame: 60 },
+  { name: 'Void Poet', cost: 1800000, lyricBoost: 105, minFame: 95 },
+]
+
+// Studio options (index-based)
+const STUDIOS = [
+  { name: 'Your Studio', cost: 0, studioBoost: 0 },
+  { name: 'Garage Booth', cost: 1000, studioBoost: 15 },
+  { name: 'District 7 Loft', cost: 8000, studioBoost: 28 },
+  { name: 'Noir Labs HQ', cost: 30000, studioBoost: 42 },
+  { name: 'Crystal Room', cost: 100000, studioBoost: 56 },
+  { name: 'Obsidian Tower', cost: 300000, studioBoost: 70 },
+  { name: 'Void Citadel', cost: 1600000, studioBoost: 105 },
+]
+
 // Load conversation history from database
 async function loadConversationHistory(userId: string): Promise<Array<{ role: string; content: string }>> {
   const { data, error } = await supabase
@@ -265,10 +303,15 @@ async function executeGameCommand(command: string, params: any, careerId: string
 
   switch (cmd) {
     case 'create_song': {
-      const { title, genre, explicit, features, producerCost, writerCost, studioCost, albumTitle } = params
+      const { title, genre, explicit, features, producerIndex, writerIndex, studioIndex, albumTitle } = params
+
+      // Get costs from indices
+      const producer = PRODUCERS[producerIndex || 0] || PRODUCERS[0]
+      const writer = WRITERS[writerIndex || 0] || WRITERS[0]
+      const studio = STUDIOS[studioIndex || 0] || STUDIOS[0]
 
       // Calculate total cost
-      const totalCost = (producerCost || 0) + (writerCost || 0) + (studioCost || 0)
+      const totalCost = producer.cost + writer.cost + studio.cost
 
       // Check if player has enough cash
       if (state.cash < totalCost) {
