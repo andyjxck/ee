@@ -135,7 +135,11 @@ client.on('messageCreate', async (message) => {
         '`/link <career_id> <auth_code>` - Link your Discord account to your game\n' +
         'Get your Career ID from Settings.\n' +
         'Get your Auth Code from Settings (changes every 30 seconds).\n\n' +
-        'After linking, mention me in any server with @tony <command>'
+        '**After linking, use these in any server:**\n' +
+        '`@tony link my account` - Get link instructions\n' +
+        '`@tony help` - Show this help message\n' +
+        '`@tony <any message>` - Chat with Tony (AI assistant)\n\n' +
+        'Tony can help you manage your music career through Discord!'
       );
     }
     
