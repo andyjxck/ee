@@ -553,30 +553,8 @@ async function continueConversation(message, userMessage, conversation) {
     return;
   }
 
-  // Parse incoming message for additional information
-  let parsedData = {};
-  if (conversation.command === 'create_song') {
-    parsedData = parseSongCreation(cleanMessage);
-  } else if (conversation.command === 'create_merch') {
-    parsedData = parseMerchCreation(cleanMessage);
-  } else if (conversation.command === 'book_tour') {
-    parsedData = parseTourBooking(cleanMessage);
-  } else if (conversation.command === 'upgrade_studio') {
-    parsedData = parseStudioUpgrade(cleanMessage);
-  }
-
-  // Merge parsed data with existing conversation data
-  const mergedData = { ...conversation.data, ...parsedData };
-  conversation.data = mergedData;
-
-  // Determine next step based on what's still missing
-  const nextStep = determineMissingStep(conversation.command, mergedData);
-  conversation.step = nextStep;
-  conversations.set(userId, conversation);
-
   // If already at confirm step and user says yes/no, handle it
   if (conversation.step === 'confirm') {
-    const lower = cleanMessage.toLowerCase();
     if (lower === 'yes' || lower === 'y') {
       if (conversation.command === 'create_song') {
         await executeSongCreation(message, conversation);
@@ -595,18 +573,19 @@ async function continueConversation(message, userMessage, conversation) {
     }
   }
 
+  // Handle the current step directly without re-parsing
   switch (conversation.command) {
     case 'create_song':
-      await handleSongStep(message, conversation);
+      await continueSongCreation(message, cleanMessage, conversation);
       return;
     case 'create_merch':
-      await handleMerchStep(message, conversation);
+      await continueMerchCreation(message, cleanMessage, conversation);
       return;
     case 'book_tour':
-      await handleTourStep(message, conversation);
+      await continueTourBooking(message, cleanMessage, conversation);
       return;
     case 'upgrade_studio':
-      await handleStudioStep(message, conversation);
+      await continueStudioUpgrade(message, cleanMessage, conversation);
       return;
     case 'release_song':
       await continueSongRelease(message, cleanMessage, conversation);
