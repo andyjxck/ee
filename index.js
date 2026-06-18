@@ -21,9 +21,12 @@ async function handleConversation(message, userMessage) {
   const userId = message.author.id;
   const conversation = conversations.get(userId);
 
+  // Always strip bot mention from user message
+  const cleanMessage = userMessage.replace(BOT_MENTION_REGEX, '').trim();
+
   if (!conversation) {
     // Start new conversation based on intent
-    const intent = detectIntent(userMessage);
+    const intent = detectIntent(cleanMessage);
     if (intent === 'create_song') {
       conversations.set(userId, {
         step: 'title',
@@ -135,12 +138,12 @@ async function handleConversation(message, userMessage) {
       return message.reply('No active conversation to cancel.');
     } else {
       // Fall through to AI chat
-      return handleChat(message, userMessage);
+      return handleChat(message, cleanMessage);
     }
   }
 
   // Continue existing conversation
-  return continueConversation(message, userMessage, conversation);
+  return continueConversation(message, cleanMessage, conversation);
 }
 
 function detectIntent(message) {
@@ -189,7 +192,9 @@ function detectIntent(message) {
 
 async function continueConversation(message, userMessage, conversation) {
   const userId = message.author.id;
-  const lower = userMessage.toLowerCase().trim();
+  // Strip bot mention from user message
+  const cleanMessage = userMessage.replace(BOT_MENTION_REGEX, '').trim();
+  const lower = cleanMessage.toLowerCase().trim();
 
   // Check for cancel
   if (lower === 'cancel' || lower === 'stop' || lower === 'nevermind') {
@@ -199,25 +204,25 @@ async function continueConversation(message, userMessage, conversation) {
 
   switch (conversation.command) {
     case 'create_song':
-      return continueSongCreation(message, lower, conversation);
+      return continueSongCreation(message, cleanMessage, conversation);
     case 'create_album':
-      return continueAlbumCreation(message, lower, conversation);
+      return continueAlbumCreation(message, cleanMessage, conversation);
     case 'create_merch':
-      return continueMerchCreation(message, lower, conversation);
+      return continueMerchCreation(message, cleanMessage, conversation);
     case 'book_tour':
-      return continueTourBooking(message, lower, conversation);
+      return continueTourBooking(message, cleanMessage, conversation);
     case 'upgrade_studio':
-      return continueStudioUpgrade(message, lower, conversation);
+      return continueStudioUpgrade(message, cleanMessage, conversation);
     case 'release_song':
-      return continueSongRelease(message, lower, conversation);
+      return continueSongRelease(message, cleanMessage, conversation);
     case 'market_song':
-      return continueSongMarketing(message, lower, conversation);
+      return continueSongMarketing(message, cleanMessage, conversation);
     case 'create_video':
-      return continueVideoCreation(message, lower, conversation);
+      return continueVideoCreation(message, cleanMessage, conversation);
     case 'create_short':
-      return continueShortCreation(message, lower, conversation);
+      return continueShortCreation(message, cleanMessage, conversation);
     case 'sign_label':
-      return continueLabelSigning(message, lower, conversation);
+      return continueLabelSigning(message, cleanMessage, conversation);
     default:
       conversations.delete(userId);
       return message.reply('Conversation reset. Try again!');
@@ -884,7 +889,8 @@ client.on('messageCreate', async (message) => {
     }
 
     // Use conversation handler for everything else
-    return handleConversation(message, cleanMessage);
+    await handleConversation(message, cleanMessage);
+    return;
   }
 });
 
