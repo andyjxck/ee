@@ -33,53 +33,58 @@ async function handleConversation(message, userMessage) {
         data: {},
         command: 'create_song'
       });
-      return message.reply(
+      await message.reply(
         '🎵 **Let\'s create a new song!**\n\n' +
         'What should the song be called?'
       );
+      return;
     } else if (intent === 'create_album') {
       conversations.set(userId, {
         step: 'name',
         data: {},
         command: 'create_album'
       });
-      return message.reply(
+      await message.reply(
         '💿 **Let\'s create a new album!**\n\n' +
         'What should the album be called?'
       );
+      return;
     } else if (intent === 'create_merch') {
       conversations.set(userId, {
         step: 'type',
         data: {},
         command: 'create_merch'
       });
-      return message.reply(
+      await message.reply(
         '👕 **Let\'s create new merch!**\n\n' +
         'What type of merch?\n' +
         'Options: ' + MERCH_TYPES.join(', ')
       );
+      return;
     } else if (intent === 'book_tour') {
       conversations.set(userId, {
         step: 'venue',
         data: {},
         command: 'book_tour'
       });
-      return message.reply(
+      await message.reply(
         '🎤 **Let\'s book a tour!**\n\n' +
         'What venue type?\n' +
         'Options: ' + TOUR_VENUES.join(', ')
       );
+      return;
     } else if (intent === 'upgrade_studio') {
       conversations.set(userId, {
         step: 'component',
         data: {},
         command: 'upgrade_studio'
       });
-      return message.reply(
+      await message.reply(
         '🎚️ **Let\'s upgrade your studio!**\n\n' +
         'Which component?\n' +
         'Options: vocals, production, mixing, mastering'
       );
+      return;
     } else if (intent === 'view_stats') {
       return handleGameCommand(message, 'view stats');
     } else if (intent === 'advance_week') {
@@ -90,55 +95,62 @@ async function handleConversation(message, userMessage) {
         data: {},
         command: 'release_song'
       });
-      return message.reply(
+      await message.reply(
         '📀 **Let\'s release a song!**\n\n' +
         'Which song? (Say the song title or "list" to see your unreleased songs)'
       );
+      return;
     } else if (intent === 'market_song') {
       conversations.set(userId, {
         step: 'song_select',
         data: {},
         command: 'market_song'
       });
-      return message.reply(
+      await message.reply(
         '📢 **Let\'s market a song!**\n\n' +
         'Which song? (Say the song title or "list" to see your released songs)'
       );
+      return;
     } else if (intent === 'create_video') {
       conversations.set(userId, {
         step: 'song_select',
         data: {},
         command: 'create_video'
       });
-      return message.reply(
+      await message.reply(
         '🎬 **Let\'s create a music video!**\n\n' +
         'Which song? (Say the song title or "list" to see your released songs)'
       );
+      return;
     } else if (intent === 'create_short') {
       conversations.set(userId, {
         step: 'song_select',
         data: {},
         command: 'create_short'
       });
-      return message.reply(
+      await message.reply(
         '📱 **Let\'s create a short!**\n\n' +
         'Which song? (Say the song title or "list" to see your released songs)'
       );
+      return;
     } else if (intent === 'sign_label') {
       conversations.set(userId, {
         step: 'label_select',
         data: {},
         command: 'sign_label'
       });
-      return message.reply(
+      await message.reply(
         '📝 **Let\'s sign with a label!**\n\n' +
         'Which label? (Say the label name or "list" to see available labels)'
       );
+      return;
     } else if (intent === 'cancel') {
-      return message.reply('No active conversation to cancel.');
+      await message.reply('No active conversation to cancel.');
+      return;
     } else {
       // Fall through to AI chat
-      return handleChat(message, cleanMessage);
+      await handleChat(message, cleanMessage);
+      return;
     }
   }
 
@@ -196,36 +208,53 @@ async function continueConversation(message, userMessage, conversation) {
   const cleanMessage = userMessage.replace(BOT_MENTION_REGEX, '').trim();
   const lower = cleanMessage.toLowerCase().trim();
 
-  // Check for cancel
+  // Check for cancel or help FIRST
   if (lower === 'cancel' || lower === 'stop' || lower === 'nevermind') {
     conversations.delete(userId);
-    return message.reply('❌ Conversation cancelled.');
+    await message.reply('❌ Conversation cancelled.');
+    return;
+  }
+
+  if (lower === 'help') {
+    await message.reply(getHelpMessage());
+    return;
   }
 
   switch (conversation.command) {
     case 'create_song':
-      return continueSongCreation(message, cleanMessage, conversation);
+      await continueSongCreation(message, cleanMessage, conversation);
+      return;
     case 'create_album':
-      return continueAlbumCreation(message, cleanMessage, conversation);
+      await continueAlbumCreation(message, cleanMessage, conversation);
+      return;
     case 'create_merch':
-      return continueMerchCreation(message, cleanMessage, conversation);
+      await continueMerchCreation(message, cleanMessage, conversation);
+      return;
     case 'book_tour':
-      return continueTourBooking(message, cleanMessage, conversation);
+      await continueTourBooking(message, cleanMessage, conversation);
+      return;
     case 'upgrade_studio':
-      return continueStudioUpgrade(message, cleanMessage, conversation);
+      await continueStudioUpgrade(message, cleanMessage, conversation);
+      return;
     case 'release_song':
-      return continueSongRelease(message, cleanMessage, conversation);
+      await continueSongRelease(message, cleanMessage, conversation);
+      return;
     case 'market_song':
-      return continueSongMarketing(message, cleanMessage, conversation);
+      await continueSongMarketing(message, cleanMessage, conversation);
+      return;
     case 'create_video':
-      return continueVideoCreation(message, cleanMessage, conversation);
+      await continueVideoCreation(message, cleanMessage, conversation);
+      return;
     case 'create_short':
-      return continueShortCreation(message, cleanMessage, conversation);
+      await continueShortCreation(message, cleanMessage, conversation);
+      return;
     case 'sign_label':
-      return continueLabelSigning(message, cleanMessage, conversation);
+      await continueLabelSigning(message, cleanMessage, conversation);
+      return;
     default:
       conversations.delete(userId);
-      return message.reply('Conversation reset. Try again!');
+      await message.reply('Conversation reset. Try again!');
+      return;
   }
 }
 
@@ -235,92 +264,106 @@ async function continueSongCreation(message, input, conversation) {
   switch (conversation.step) {
     case 'title':
       if (!input || input.length < 2) {
-        return message.reply('Please enter a valid song title (at least 2 characters).');
+        await message.reply('Please enter a valid song title (at least 2 characters).');
+        return;
       }
       conversation.data.title = input;
       conversation.step = 'genre';
       conversations.set(userId, conversation);
-      return message.reply(
+      await message.reply(
         `Title: **"${input}"**\n\n` +
         'What genre?\n' +
         'Options: ' + GENRES.join(', ')
       );
+      return;
 
     case 'genre':
-      if (!GENRES.includes(input)) {
-        return message.reply(`Please choose a valid genre: ${GENRES.join(', ')}`);
+      console.log('Genre input:', input, 'Lower:', input.toLowerCase());
+      if (!GENRES.includes(input.toLowerCase())) {
+        await message.reply(`Please choose a valid genre: ${GENRES.join(', ')}`);
+        return;
       }
-      conversation.data.genre = input;
+      conversation.data.genre = input.toLowerCase();
       conversation.step = 'explicit';
       conversations.set(userId, conversation);
-      return message.reply(
+      await message.reply(
         `Genre: **${input}**\n\n` +
         'Should this song be explicit? (yes/no)'
       );
+      return;
 
     case 'explicit':
       const isExplicit = input === 'yes' || input === 'y';
       conversation.data.explicit = isExplicit;
       conversation.step = 'features';
       conversations.set(userId, conversation);
-      return message.reply(
+      await message.reply(
         `Explicit: **${isExplicit ? 'Yes' : 'No'}**\n\n` +
         'What features should the song have?\n' +
         'Options: ' + SONG_FEATURES.join(', ') + '\n' +
         '(You can list multiple, separated by commas)'
       );
+      return;
 
     case 'features':
       const selectedFeatures = input.split(',').map(f => f.trim()).filter(f => SONG_FEATURES.includes(f));
       if (selectedFeatures.length === 0) {
-        return message.reply(`Please choose valid features: ${SONG_FEATURES.join(', ')}`);
+        await message.reply(`Please choose valid features: ${SONG_FEATURES.join(', ')}`);
+        return;
       }
       conversation.data.features = selectedFeatures;
       conversation.step = 'producer';
       conversations.set(userId, conversation);
-      return message.reply(
+      await message.reply(
         `Features: **${selectedFeatures.join(', ')}**\n\n` +
         'Producer budget? (Amount in £, e.g., "5000" or "0" for no producer)'
       );
+      return;
 
     case 'producer':
       const producerCost = parseInt(input);
       if (isNaN(producerCost) || producerCost < 0) {
-        return message.reply('Please enter a valid number (0 or higher).');
+        await message.reply('Please enter a valid number (0 or higher).');
+        return;
       }
       conversation.data.producerCost = producerCost;
       conversation.step = 'writer';
       conversations.set(userId, conversation);
-      return message.reply(
+      await message.reply(
         `Producer budget: £${producerCost.toLocaleString()}\n\n` +
         'Writer budget? (Amount in £, e.g., "3000" or "0" for no writer)'
       );
+      return;
 
     case 'writer':
       const writerCost = parseInt(input);
       if (isNaN(writerCost) || writerCost < 0) {
-        return message.reply('Please enter a valid number (0 or higher).');
+        await message.reply('Please enter a valid number (0 or higher).');
+        return;
       }
       conversation.data.writerCost = writerCost;
       conversation.step = 'studio';
       conversations.set(userId, conversation);
-      return message.reply(
+      await message.reply(
         `Writer budget: £${writerCost.toLocaleString()}\n\n` +
         'Studio budget? (Amount in £, e.g., "2000" or "0" for default studio)'
       );
+      return;
 
     case 'studio':
       const studioCost = parseInt(input);
       if (isNaN(studioCost) || studioCost < 0) {
-        return message.reply('Please enter a valid number (0 or higher).');
+        await message.reply('Please enter a valid number (0 or higher).');
+        return;
       }
       conversation.data.studioCost = studioCost;
       conversation.step = 'album';
       conversations.set(userId, conversation);
-      return message.reply(
+      await message.reply(
         `Studio budget: £${studioCost.toLocaleString()}\n\n` +
         'Add to an album? (Enter album name or "no" for standalone single)'
       );
+      return;
 
     case 'album':
       if (input === 'no' || input === 'n') {
@@ -337,14 +380,15 @@ Genre: ${conversation.data.genre}
 Explicit: ${conversation.data.explicit ? 'Yes' : 'No'}
 Features: ${conversation.data.features.join(', ')}
 Producer: £${conversation.data.producerCost.toLocaleString()}
-Writer: £${writerCost.toLocaleString()}
-Studio: £${studioCost.toLocaleString()}
+Writer: £${conversation.data.writerCost.toLocaleString()}
+Studio: £${conversation.data.studioCost.toLocaleString()}
 Album: ${conversation.data.albumTitle || 'Standalone single'}
 
 Total cost: £${(conversation.data.producerCost + conversation.data.writerCost + conversation.data.studioCost).toLocaleString()}
 
 Confirm? (yes/no)`;
-      return message.reply(summary);
+      await message.reply(summary);
+      return;
 
     case 'confirm':
       if (input === 'yes' || input === 'y') {
@@ -354,14 +398,15 @@ Confirm? (yes/no)`;
           ...conversation.data
         });
         if (result.success) {
-          return message.reply(`✅ **Song created!**\n\n${result.message}`);
+          await message.reply(`✅ **Song created!**\n\n${result.message}`);
         } else {
-          return message.reply(`❌ **Error:** ${result.error}`);
+          await message.reply(`❌ **Error:** ${result.error}`);
         }
       } else {
         conversations.delete(userId);
-        return message.reply('❌ Song creation cancelled.');
+        await message.reply('❌ Song creation cancelled.');
       }
+      return;
   }
 }
 
@@ -371,15 +416,17 @@ async function continueAlbumCreation(message, input, conversation) {
   switch (conversation.step) {
     case 'name':
       if (!input || input.length < 2) {
-        return message.reply('Please enter a valid album name (at least 2 characters).');
+        await message.reply('Please enter a valid album name (at least 2 characters).');
+        return;
       }
       conversation.data.name = input;
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
-      return message.reply(
+      await message.reply(
         `Album name: **"${input}"**\n\n` +
         'Confirm album creation? (yes/no)'
       );
+      return;
 
     case 'confirm':
       if (input === 'yes' || input === 'y') {
@@ -389,14 +436,15 @@ async function continueAlbumCreation(message, input, conversation) {
           ...conversation.data
         });
         if (result.success) {
-          return message.reply(`✅ **Album created!**\n\n${result.message}`);
+          await message.reply(`✅ **Album created!**\n\n${result.message}`);
         } else {
-          return message.reply(`❌ **Error:** ${result.error}`);
+          await message.reply(`❌ **Error:** ${result.error}`);
         }
       } else {
         conversations.delete(userId);
-        return message.reply('❌ Album creation cancelled.');
+        await message.reply('❌ Album creation cancelled.');
       }
+      return;
   }
 }
 
@@ -406,28 +454,32 @@ async function continueMerchCreation(message, input, conversation) {
   switch (conversation.step) {
     case 'type':
       if (!MERCH_TYPES.includes(input)) {
-        return message.reply(`Please choose a valid type: ${MERCH_TYPES.join(', ')}`);
+        await message.reply(`Please choose a valid type: ${MERCH_TYPES.join(', ')}`);
+        return;
       }
       conversation.data.type = input;
       conversation.step = 'quantity';
       conversations.set(userId, conversation);
-      return message.reply(
+      await message.reply(
         `Type: **${input}**\n\n` +
         'How many units to produce?'
       );
+      return;
 
     case 'quantity':
       const quantity = parseInt(input);
       if (isNaN(quantity) || quantity < 1) {
-        return message.reply('Please enter a valid number (1 or higher).');
+        await message.reply('Please enter a valid number (1 or higher).');
+        return;
       }
       conversation.data.quantity = quantity;
       conversation.step = 'price';
       conversations.set(userId, conversation);
-      return message.reply(
+      await message.reply(
         `Quantity: **${quantity}**\n\n` +
         'Set price per unit? (Amount in £, or "default" for auto-pricing)'
       );
+      return;
 
     case 'price':
       if (input === 'default' || input === 'd') {
@@ -435,7 +487,8 @@ async function continueMerchCreation(message, input, conversation) {
       } else {
         const price = parseInt(input);
         if (isNaN(price) || price < 0) {
-          return message.reply('Please enter a valid number or "default".');
+          await message.reply('Please enter a valid number or "default".');
+          return;
         }
         conversation.data.price = price;
       }
@@ -448,7 +501,8 @@ Quantity: ${conversation.data.quantity}
 Price: ${conversation.data.price ? '£' + conversation.data.price.toLocaleString() : 'Auto'}
 
 Confirm? (yes/no)`;
-      return message.reply(summary);
+      await message.reply(summary);
+      return;
 
     case 'confirm':
       if (input === 'yes' || input === 'y') {
@@ -458,14 +512,15 @@ Confirm? (yes/no)`;
           ...conversation.data
         });
         if (result.success) {
-          return message.reply(`✅ **Merch created!**\n\n${result.message}`);
+          await message.reply(`✅ **Merch created!**\n\n${result.message}`);
         } else {
-          return message.reply(`❌ **Error:** ${result.error}`);
+          await message.reply(`❌ **Error:** ${result.error}`);
         }
       } else {
         conversations.delete(userId);
-        return message.reply('❌ Merch creation cancelled.');
+        await message.reply('❌ Merch creation cancelled.');
       }
+      return;
   }
 }
 
@@ -475,15 +530,17 @@ async function continueTourBooking(message, input, conversation) {
   switch (conversation.step) {
     case 'venue':
       if (!TOUR_VENUES.includes(input)) {
-        return message.reply(`Please choose a valid venue: ${TOUR_VENUES.join(', ')}`);
+        await message.reply(`Please choose a valid venue: ${TOUR_VENUES.join(', ')}`);
+        return;
       }
       conversation.data.venue = input;
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
-      return message.reply(
+      await message.reply(
         `Venue: **${input}**\n\n` +
         'Confirm tour booking? (yes/no)'
       );
+      return;
 
     case 'confirm':
       if (input === 'yes' || input === 'y') {
@@ -493,14 +550,15 @@ async function continueTourBooking(message, input, conversation) {
           ...conversation.data
         });
         if (result.success) {
-          return message.reply(`✅ **Tour booked!**\n\n${result.message}`);
+          await message.reply(`✅ **Tour booked!**\n\n${result.message}`);
         } else {
-          return message.reply(`❌ **Error:** ${result.error}`);
+          await message.reply(`❌ **Error:** ${result.error}`);
         }
       } else {
         conversations.delete(userId);
-        return message.reply('❌ Tour booking cancelled.');
+        await message.reply('❌ Tour booking cancelled.');
       }
+      return;
   }
 }
 
@@ -511,15 +569,17 @@ async function continueStudioUpgrade(message, input, conversation) {
     case 'component':
       const components = ['vocals', 'production', 'mixing', 'mastering'];
       if (!components.includes(input)) {
-        return message.reply(`Please choose a valid component: ${components.join(', ')}`);
+        await message.reply(`Please choose a valid component: ${components.join(', ')}`);
+        return;
       }
       conversation.data.component = input;
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
-      return message.reply(
+      await message.reply(
         `Component: **${input}**\n\n` +
         'Confirm studio upgrade? (yes/no)'
       );
+      return;
 
     case 'confirm':
       if (input === 'yes' || input === 'y') {
@@ -529,14 +589,15 @@ async function continueStudioUpgrade(message, input, conversation) {
           ...conversation.data
         });
         if (result.success) {
-          return message.reply(`✅ **Studio upgraded!**\n\n${result.message}`);
+          await message.reply(`✅ **Studio upgraded!**\n\n${result.message}`);
         } else {
-          return message.reply(`❌ **Error:** ${result.error}`);
+          await message.reply(`❌ **Error:** ${result.error}`);
         }
       } else {
         conversations.delete(userId);
-        return message.reply('❌ Studio upgrade cancelled.');
+        await message.reply('❌ Studio upgrade cancelled.');
       }
+      return;
   }
 }
 
@@ -548,10 +609,11 @@ async function continueSongRelease(message, input, conversation) {
       conversation.data.songTitle = input;
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
-      return message.reply(
+      await message.reply(
         `Song: **"${input}"**\n\n` +
         'Confirm release? (yes/no)'
       );
+      return;
 
     case 'confirm':
       if (input === 'yes' || input === 'y') {
@@ -561,14 +623,15 @@ async function continueSongRelease(message, input, conversation) {
           songTitle: conversation.data.songTitle
         });
         if (result.success) {
-          return message.reply(`✅ **Song released!**\n\n${result.message}`);
+          await message.reply(`✅ **Song released!**\n\n${result.message}`);
         } else {
-          return message.reply(`❌ **Error:** ${result.error}`);
+          await message.reply(`❌ **Error:** ${result.error}`);
         }
       } else {
         conversations.delete(userId);
-        return message.reply('❌ Release cancelled.');
+        await message.reply('❌ Release cancelled.');
       }
+      return;
   }
 }
 
@@ -580,23 +643,26 @@ async function continueSongMarketing(message, input, conversation) {
       conversation.data.songTitle = input;
       conversation.step = 'budget';
       conversations.set(userId, conversation);
-      return message.reply(
+      await message.reply(
         `Song: **"${input}"**\n\n` +
         'Marketing budget? (Amount in £)'
       );
+      return;
 
     case 'budget':
       const budget = parseInt(input);
       if (isNaN(budget) || budget < 0) {
-        return message.reply('Please enter a valid number (0 or higher).');
+        await message.reply('Please enter a valid number (0 or higher).');
+        return;
       }
       conversation.data.budget = budget;
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
-      return message.reply(
+      await message.reply(
         `Budget: £${budget.toLocaleString()}\n\n` +
         'Confirm marketing campaign? (yes/no)'
       );
+      return;
 
     case 'confirm':
       if (input === 'yes' || input === 'y') {
@@ -606,14 +672,15 @@ async function continueSongMarketing(message, input, conversation) {
           ...conversation.data
         });
         if (result.success) {
-          return message.reply(`✅ **Marketing campaign launched!**\n\n${result.message}`);
+          await message.reply(`✅ **Marketing campaign launched!**\n\n${result.message}`);
         } else {
-          return message.reply(`❌ **Error:** ${result.error}`);
+          await message.reply(`❌ **Error:** ${result.error}`);
         }
       } else {
         conversations.delete(userId);
-        return message.reply('❌ Marketing cancelled.');
+        await message.reply('❌ Marketing cancelled.');
       }
+      return;
   }
 }
 
@@ -625,23 +692,26 @@ async function continueVideoCreation(message, input, conversation) {
       conversation.data.songTitle = input;
       conversation.step = 'budget';
       conversations.set(userId, conversation);
-      return message.reply(
+      await message.reply(
         `Song: **"${input}"**\n\n` +
         'Video budget? (Amount in £)'
       );
+      return;
 
     case 'budget':
       const budget = parseInt(input);
       if (isNaN(budget) || budget < 0) {
-        return message.reply('Please enter a valid number (0 or higher).');
+        await message.reply('Please enter a valid number (0 or higher).');
+        return;
       }
       conversation.data.budget = budget;
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
-      return message.reply(
+      await message.reply(
         `Budget: £${budget.toLocaleString()}\n\n` +
         'Confirm video creation? (yes/no)'
       );
+      return;
 
     case 'confirm':
       if (input === 'yes' || input === 'y') {
@@ -651,14 +721,15 @@ async function continueVideoCreation(message, input, conversation) {
           ...conversation.data
         });
         if (result.success) {
-          return message.reply(`✅ **Video created!**\n\n${result.message}`);
+          await message.reply(`✅ **Video created!**\n\n${result.message}`);
         } else {
-          return message.reply(`❌ **Error:** ${result.error}`);
+          await message.reply(`❌ **Error:** ${result.error}`);
         }
       } else {
         conversations.delete(userId);
-        return message.reply('❌ Video creation cancelled.');
+        await message.reply('❌ Video creation cancelled.');
       }
+      return;
   }
 }
 
@@ -670,10 +741,11 @@ async function continueShortCreation(message, input, conversation) {
       conversation.data.songTitle = input;
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
-      return message.reply(
+      await message.reply(
         `Song: **"${input}"**\n\n` +
         'Confirm short creation? (yes/no)'
       );
+      return;
 
     case 'confirm':
       if (input === 'yes' || input === 'y') {
@@ -683,14 +755,15 @@ async function continueShortCreation(message, input, conversation) {
           songTitle: conversation.data.songTitle
         });
         if (result.success) {
-          return message.reply(`✅ **Short created!**\n\n${result.message}`);
+          await message.reply(`✅ **Short created!**\n\n${result.message}`);
         } else {
-          return message.reply(`❌ **Error:** ${result.error}`);
+          await message.reply(`❌ **Error:** ${result.error}`);
         }
       } else {
         conversations.delete(userId);
-        return message.reply('❌ Short creation cancelled.');
+        await message.reply('❌ Short creation cancelled.');
       }
+      return;
   }
 }
 
@@ -702,10 +775,11 @@ async function continueLabelSigning(message, input, conversation) {
       conversation.data.labelName = input;
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
-      return message.reply(
+      await message.reply(
         `Label: **"${input}"**\n\n` +
         'Confirm label signing? (yes/no)'
       );
+      return;
 
     case 'confirm':
       if (input === 'yes' || input === 'y') {
@@ -715,14 +789,15 @@ async function continueLabelSigning(message, input, conversation) {
           labelName: conversation.data.labelName
         });
         if (result.success) {
-          return message.reply(`✅ **Label signed!**\n\n${result.message}`);
+          await message.reply(`✅ **Label signed!**\n\n${result.message}`);
         } else {
-          return message.reply(`❌ **Error:** ${result.error}`);
+          await message.reply(`❌ **Error:** ${result.error}`);
         }
       } else {
         conversations.delete(userId);
-        return message.reply('❌ Label signing cancelled.');
+        await message.reply('❌ Label signing cancelled.');
       }
+      return;
   }
 }
 
