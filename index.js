@@ -42,8 +42,8 @@ function parseSongCreation(message) {
     data.features = foundFeatures;
   }
 
-  // Extract album (after "album" or "in album")
-  const albumMatch = message.match(/(?:album|in)\s+"([^"]+)"|album\s+(\w+)/i);
+  // Extract album (after "album called", "in album called", "in", or "album")
+  const albumMatch = message.match(/(?:album|in album)\s+(?:called|named)\s+"([^"]+)"|(?:in|album)\s+"([^"]+)"/i);
   if (albumMatch) {
     data.albumTitle = albumMatch[1] || albumMatch[2];
   }
