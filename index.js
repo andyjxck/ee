@@ -119,6 +119,7 @@ client.on('messageCreate', async (message) => {
   // Handle DMs
   if (message.channel.type === 1) { // DM
     const content = message.content.trim().toLowerCase();
+    console.log('DM received:', content);
     
     // Link command
     if (content.startsWith('/link ')) {
@@ -127,7 +128,8 @@ client.on('messageCreate', async (message) => {
     }
     
     // Help command
-    if (content === '/link' || content === 'help') {
+    if (content === '/link' || content === 'help' || content === '/help') {
+      console.log('Help command matched');
       return message.reply(
         '**Tony Bot Commands**\n\n' +
         '`/link <career_id> <auth_code>` - Link your Discord account to your game\n' +
@@ -137,6 +139,7 @@ client.on('messageCreate', async (message) => {
       );
     }
     
+    console.log('Falling through to chat handler');
     // Default: treat as chat
     return handleChat(message, message.content);
   }
