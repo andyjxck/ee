@@ -471,11 +471,41 @@ async function executeGameCommand(command: string, params: any, careerId: string
     case 'upgrade_studio': {
       const { component } = params
 
-      // Update studio levels
+      // Get current level
+      const currentLevel = (state.studio_levels || {})[component] || 1
+
+      // Calculate upgrade cost
+      const getStudioUpgradeCost = (currentLevel: number) => {
+        if (currentLevel < 10) return Math.floor(50 + currentLevel * 15)
+        if (currentLevel < 20) return Math.floor(200 + (currentLevel - 10) * 30)
+        if (currentLevel < 40) return Math.floor(500 + (currentLevel - 20) * 50)
+        if (currentLevel < 70) return Math.floor(1_500 + (currentLevel - 40) * 80)
+        return Math.floor(3_900 + (currentLevel - 70) * 100)
+      }
+
+      const cost = getStudioUpgradeCost(currentLevel)
+
+      // Check cash
+      if (state.cash < cost) {
+        return { success: false, error: `Not enough cash. Need £${cost.toLocaleString()}, have £${state.cash.toLocaleString()}` }
+      }
+
+      // Check energy
+      if ((state.energy || 0) < 4) {
+        return { success: false, error: `Not enough energy. Need 4, have ${state.energy || 0}` }
+      }
+
+      // Calculate boost (+5 to +7)
+      const boost = Math.floor(Math.random() * 3) + 5
+      const newLevel = Math.min(100, currentLevel + boost)
+
+      // Update studio levels (using jsonb_set for nested update)
       const { error: studioError } = await supabase.from('ms_careers').update({
+        cash: state.cash - cost,
+        energy: (state.energy || 0) - 4,
         studio_levels: {
-          ...state.studio_levels,
-          [component]: ((state.studio_levels || {})[component] || 1) + 1
+          ...(state.studio_levels || {}),
+          [component]: newLevel
         }
       }).eq('id', careerId)
 
@@ -485,7 +515,7 @@ async function executeGameCommand(command: string, params: any, careerId: string
 
       return {
         success: true,
-        message: `✅ **Studio Upgraded!**\n\nComponent: ${component}\n\nYour ${component} level has increased!`
+        message: `✅ **Studio Upgraded!**\n\nComponent: ${component}\nLevel: ${currentLevel} → ${newLevel} (+${boost})\nCost: £${cost.toLocaleString()}\n\nYour ${component} level has increased!`
       }
     }
 
