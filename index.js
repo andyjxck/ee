@@ -861,7 +861,7 @@ async function handleLinkCommand(message, args) {
   const authCode = parts[1];
 
   if (!careerId || !authCode) {
-    return message.reply(
+    return await message.reply(
       'Please provide both your Career ID and Auth Code.\n\n' +
       'Usage: `/link <career_id> <auth_code>`\n\n' +
       'Example: `/link 251 123456`\n\n' +
@@ -877,9 +877,9 @@ async function handleLinkCommand(message, args) {
   });
 
   if (result.success) {
-    return message.reply('✅ **Account linked successfully!** You can now use Tony to control your game.');
+    return await message.reply('✅ **Account linked successfully!** You can now use Tony to control your game.');
   } else {
-    return message.reply(`❌ **Link failed:** ${result.error}`);
+    return await message.reply(`❌ **Link failed:** ${result.error}`);
   }
 }
 
@@ -892,9 +892,9 @@ async function handleGameCommand(message, commandText) {
   });
 
   if (result.success) {
-    return message.reply(result.message);
+    return await message.reply(result.message);
   } else {
-    return message.reply(`❌ **Error:** ${result.error}`);
+    return await message.reply(`❌ **Error:** ${result.error}`);
   }
 }
 
@@ -906,9 +906,9 @@ async function handleChat(message, userMessage) {
   });
 
   if (result.success) {
-    return message.reply(result.response);
+    return await message.reply(result.response);
   } else {
-    return message.reply(`❌ **Error:** ${result.error}`);
+    return await message.reply(`❌ **Error:** ${result.error}`);
   }
 }
 
@@ -957,7 +957,7 @@ client.on('messageCreate', async (message) => {
     // Help command
     if (content.toLowerCase() === '/link' || content.toLowerCase() === 'help' || content.toLowerCase() === '/help') {
       console.log('Help command matched');
-      return message.reply(getHelpMessage());
+      return await message.reply(getHelpMessage());
     }
 
     // Use conversation handler for everything else
@@ -980,19 +980,19 @@ client.on('messageCreate', async (message) => {
           'Reply with: `/link <career_id> <any_code>`\n' +
           'Example: `/link 251 123456`'
         );
-        return message.reply('✅ I\'ve sent you a DM with instructions!');
+        return await message.reply('✅ I\'ve sent you a DM with instructions!');
       } catch (error) {
-        return message.reply('❌ I couldn\'t send you a DM. Please enable DMs in your privacy settings.');
+        return await message.reply('❌ I couldn\'t send you a DM. Please enable DMs in your privacy settings.');
       }
     }
 
     // Help command
     if (cleanMessage.toLowerCase() === 'help') {
-      return message.reply(getHelpMessage());
+      return await message.reply(getHelpMessage());
     }
 
     if (!cleanMessage) {
-      return message.reply('Hi! I\'m Tony. Mention me with a command like: `@tony create a song` or say `@tony link my account` to connect your game.');
+      return await message.reply('Hi! I\'m Tony. Mention me with a command like: `@tony create a song` or say `@tony link my account` to connect your game.');
     }
 
     // Use conversation handler for everything else
