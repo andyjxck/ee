@@ -141,6 +141,7 @@ async function getGroqResponse(message: string, context: string, userId: string)
             - Keep responses concise but informative
             - You can discuss the game even if the user is just chatting
             - Remember previous messages in the conversation to maintain context
+            - DO NOT repeat the player's stats (cash, fame, week) in every response. Only mention them when relevant to the conversation or when asked.
 
             **Available conversational commands:**
             - create song, create album, create merch, book tour
