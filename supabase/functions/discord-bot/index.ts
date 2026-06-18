@@ -17,6 +17,51 @@ const RATE_LIMIT_MAX = 10 // 10 commands per minute
 const conversationHistory = new Map<string, Array<{ role: string; content: string }>>()
 const MAX_HISTORY_LENGTH = 10
 
+// Load conversation history from database
+async function loadConversationHistory(userId: string): Promise<Array<{ role: string; content: string }>> {
+  const { data, error } = await supabase
+    .from('ms_discord_conversation_history')
+    .select('role, content')
+    .eq('discord_user_id', userId)
+    .order('created_at', { ascending: true })
+    .limit(MAX_HISTORY_LENGTH * 2)
+  
+  if (error || !data) {
+    return []
+  }
+  
+  return data.map((item: any) => ({ role: item.role, content: item.content }))
+}
+
+// Save conversation history to database
+async function saveConversationHistory(userId: string, role: string, content: string) {
+  await supabase
+    .from('ms_discord_conversation_history')
+    .insert({
+      discord_user_id: userId,
+      role,
+      content,
+      created_at: new Date().toISOString(),
+    })
+  
+  // Clean up old messages
+  const { data: allMessages } = await supabase
+    .from('ms_discord_conversation_history')
+    .select('id')
+    .eq('discord_user_id', userId)
+    .order('created_at', { ascending: false })
+  
+  if (allMessages && allMessages.length > MAX_HISTORY_LENGTH * 2) {
+    const toDelete = allMessages.slice(MAX_HISTORY_LENGTH * 2)
+    for (const msg of toDelete) {
+      await supabase
+        .from('ms_discord_conversation_history')
+        .delete()
+        .eq('id', msg.id)
+    }
+  }
+}
+
 function checkRateLimit(userId: string): boolean {
   const now = Date.now()
   const userLimit = rateLimits.get(userId)
@@ -45,8 +90,8 @@ async function getGroqResponse(message: string, context: string, userId: string)
   try {
     console.log('Groq API key present:', !!groqApiKey)
 
-    // Get or create conversation history
-    let history = conversationHistory.get(userId) || []
+    // Load conversation history from database
+    const history = await loadConversationHistory(userId)
     
     // Build messages array with system prompt and history
     const messages = [
@@ -139,16 +184,9 @@ async function getGroqResponse(message: string, context: string, userId: string)
     content = content.replace(/Here's a thinking process:[\s\S]*?(?=Ready\.|Output matches|Final Polish)/gi, '')
     content = content.trim()
     
-    // Update conversation history
-    history.push({ role: 'user', content: message })
-    history.push({ role: 'assistant', content: content })
-    
-    // Trim history to max length
-    if (history.length > MAX_HISTORY_LENGTH * 2) {
-      history = history.slice(-MAX_HISTORY_LENGTH * 2)
-    }
-    
-    conversationHistory.set(userId, history)
+    // Save conversation history to database
+    await saveConversationHistory(userId, 'user', message)
+    await saveConversationHistory(userId, 'assistant', content)
     
     return content
   } catch (error) {
