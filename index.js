@@ -22,7 +22,9 @@ async function handleConversation(message, userMessage) {
   const conversation = conversations.get(userId);
 
   // Always strip bot mention from user message
+  console.log('Before strip:', userMessage);
   const cleanMessage = userMessage.replace(BOT_MENTION_REGEX, '').trim();
+  console.log('After strip:', cleanMessage);
 
   if (!conversation) {
     // Start new conversation based on intent
@@ -205,7 +207,9 @@ function detectIntent(message) {
 async function continueConversation(message, userMessage, conversation) {
   const userId = message.author.id;
   // Strip bot mention from user message
+  console.log('Continue - Before strip:', userMessage);
   const cleanMessage = userMessage.replace(BOT_MENTION_REGEX, '').trim();
+  console.log('Continue - After strip:', cleanMessage);
   const lower = cleanMessage.toLowerCase().trim();
 
   // Check for cancel or help FIRST
