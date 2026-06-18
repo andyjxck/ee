@@ -48,7 +48,7 @@ async function getGroqResponse(message: string, context: string): Promise<string
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'qwen/qwen3.6-27b',
+        model: 'llama3-8b-8192',
         messages: [
           {
             role: 'system',
@@ -123,6 +123,8 @@ async function getGroqResponse(message: string, context: string): Promise<string
     content = content.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
     content = content.replace(/```thinking[\s\S]*?```/gi, '')
     content = content.replace(/Thinking: [\s\S]*?(?=\n\n|$)/gi, '')
+    // Strip "Here's a thinking process:" format
+    content = content.replace(/Here's a thinking process:[\s\S]*?(?=Ready\.|Output matches|Final Polish)/gi, '')
     content = content.trim()
     
     return content
