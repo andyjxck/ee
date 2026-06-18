@@ -59,6 +59,37 @@ const STUDIOS = [
   { name: 'Void Citadel', cost: 1600000, studioBoost: 105 },
 ];
 
+// Video creation choices
+const VIDEO_CHOICES = [
+  {
+    prompt: 'Choose a visual style for the music video:',
+    options: [
+      { label: 'Cinematic Narrative', bonus: 12, risk: 0, trait: 'video' },
+      { label: 'Abstract / Experimental', bonus: 18, risk: 15, trait: 'video' },
+      { label: 'Performance-Based', bonus: 8, risk: 0, trait: 'video' },
+      { label: 'Animated / CGI', bonus: 15, risk: 8, trait: 'video' },
+    ],
+  },
+  {
+    prompt: 'Pick a location:',
+    options: [
+      { label: 'Studio Set (Safe)', bonus: 5, risk: 0, trait: null },
+      { label: 'Urban Rooftop', bonus: 10, risk: 5, trait: null },
+      { label: 'Abandoned Warehouse', bonus: 14, risk: 10, trait: null },
+      { label: 'International Shoot', bonus: 20, risk: 12, trait: null },
+    ],
+  },
+  {
+    prompt: 'Post-production approach:',
+    options: [
+      { label: 'Minimal Edits', bonus: 3, risk: 0, trait: 'mixing' },
+      { label: 'Heavy VFX', bonus: 12, risk: 8, trait: 'mixing' },
+      { label: 'Color Graded Aesthetic', bonus: 8, risk: 2, trait: 'video' },
+      { label: 'Raw / Unfiltered', bonus: 6, risk: 5, trait: null },
+    ],
+  },
+];
+
 // AI artist feature costs (simplified - based on tier)
 const FEATURE_COSTS = {
   'Sailor Twift': 50000,
@@ -1166,27 +1197,48 @@ async function continueVideoCreation(message, input, conversation) {
   switch (conversation.step) {
     case 'song_select':
       conversation.data.songTitle = input;
-      conversation.step = 'budget';
+      conversation.data.choiceIndex = 0;
+      conversation.step = 'choices';
       conversations.set(userId, conversation);
+      const choiceSet = VIDEO_CHOICES[0];
+      const options = choiceSet.options.map((o, i) => `${i + 1}. ${o.label} (bonus: +${o.bonus}, risk: ${o.risk})`).join('\n');
       await message.reply(
         `Song: **"${input}"**\n\n` +
-        'Video budget? (Amount in £)'
+        choiceSet.prompt + '\n' + options + '\n\n(Say the number)'
       );
       return;
 
-    case 'budget':
-      const budget = parseInt(input);
-      if (isNaN(budget) || budget < 0) {
-        await message.reply('Please enter a valid number (0 or higher).');
+    case 'choices':
+      const choiceIndex = conversation.data.choiceIndex || 0;
+      const currentChoiceSet = VIDEO_CHOICES[choiceIndex];
+      const selectedOption = parseInt(input) - 1;
+      
+      if (isNaN(selectedOption) || selectedOption < 0 || selectedOption >= currentChoiceSet.options.length) {
+        await message.reply('Please choose a valid option number.');
         return;
       }
-      conversation.data.budget = budget;
-      conversation.step = 'confirm';
-      conversations.set(userId, conversation);
-      await message.reply(
-        `Budget: £${budget.toLocaleString()}\n\n` +
-        'Confirm video creation? (yes/no)'
-      );
+      
+      if (!conversation.data.choices) {
+        conversation.data.choices = [];
+      }
+      conversation.data.choices.push(currentChoiceSet.options[selectedOption]);
+      
+      if (choiceIndex < VIDEO_CHOICES.length - 1) {
+        conversation.data.choiceIndex = choiceIndex + 1;
+        conversations.set(userId, conversation);
+        const nextChoiceSet = VIDEO_CHOICES[choiceIndex + 1];
+        const options = nextChoiceSet.options.map((o, i) => `${i + 1}. ${o.label} (bonus: +${o.bonus}, risk: ${o.risk})`).join('\n');
+        await message.reply(
+          nextChoiceSet.prompt + '\n' + options + '\n\n(Say the number)'
+        );
+      } else {
+        conversation.step = 'confirm';
+        conversations.set(userId, conversation);
+        const summary = conversation.data.choices.map(c => `• ${c.label} (bonus: +${c.bonus}, risk: ${c.risk})`).join('\n');
+        await message.reply(
+          `**🎬 Video Summary**\nSong: "${conversation.data.songTitle}"\n\nChoices:\n${summary}\n\nConfirm video creation? (yes/no)`
+        );
+      }
       return;
 
     case 'confirm':
@@ -1194,7 +1246,8 @@ async function continueVideoCreation(message, input, conversation) {
         conversations.delete(userId);
         const result = await callEdgeFunction('create_video', {
           userId: message.author.id,
-          ...conversation.data
+          songTitle: conversation.data.songTitle,
+          choices: conversation.data.choices
         });
         if (result.success) {
           await message.reply(`✅ **Video created!**\n\n${result.message}`);

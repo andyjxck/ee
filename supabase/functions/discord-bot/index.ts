@@ -55,6 +55,37 @@ const STUDIOS = [
   { name: 'Void Citadel', cost: 1600000, studioBoost: 105 },
 ]
 
+// Video creation choices
+const VIDEO_CHOICES = [
+  {
+    prompt: 'Choose a visual style for the music video:',
+    options: [
+      { label: 'Cinematic Narrative', bonus: 12, risk: 0, trait: 'video' },
+      { label: 'Abstract / Experimental', bonus: 18, risk: 15, trait: 'video' },
+      { label: 'Performance-Based', bonus: 8, risk: 0, trait: 'video' },
+      { label: 'Animated / CGI', bonus: 15, risk: 8, trait: 'video' },
+    ],
+  },
+  {
+    prompt: 'Pick a location:',
+    options: [
+      { label: 'Studio Set (Safe)', bonus: 5, risk: 0, trait: null },
+      { label: 'Urban Rooftop', bonus: 10, risk: 5, trait: null },
+      { label: 'Abandoned Warehouse', bonus: 14, risk: 10, trait: null },
+      { label: 'International Shoot', bonus: 20, risk: 12, trait: null },
+    ],
+  },
+  {
+    prompt: 'Post-production approach:',
+    options: [
+      { label: 'Minimal Edits', bonus: 3, risk: 0, trait: 'mixing' },
+      { label: 'Heavy VFX', bonus: 12, risk: 8, trait: 'mixing' },
+      { label: 'Color Graded Aesthetic', bonus: 8, risk: 2, trait: 'video' },
+      { label: 'Raw / Unfiltered', bonus: 6, risk: 5, trait: null },
+    ],
+  },
+]
+
 // Load conversation history from database
 async function loadConversationHistory(userId: string): Promise<Array<{ role: string; content: string }>> {
   const { data, error } = await supabase
@@ -509,7 +540,7 @@ async function executeGameCommand(command: string, params: any, careerId: string
     }
 
     case 'create_video': {
-      const { songTitle, budget } = params
+      const { songTitle, choices } = params
 
       // Find the song
       const song = state.songs?.find((s: any) => s.title.toLowerCase() === songTitle.toLowerCase() && s.released)
@@ -518,17 +549,30 @@ async function executeGameCommand(command: string, params: any, careerId: string
         return { success: false, error: `Song "${songTitle}" not found or not released` }
       }
 
-      // Check cash
-      if (state.cash < budget) {
-        return { success: false, error: `Not enough cash. Need £${budget.toLocaleString()}` }
-      }
+      // Calculate video rating from choices
+      let totalBonus = 0
+      let totalRisk = 0
+      choices.forEach((choice: any) => {
+        totalBonus += choice.bonus
+        totalRisk += choice.risk
+      })
 
-      // Deduct cash
-      await supabase.from('ms_careers').update({ cash: state.cash - budget }).eq('id', careerId)
+      // Simulate risk roll
+      const riskRoll = Math.random() * 100
+      const riskPenalty = riskRoll < totalRisk ? Math.floor(totalRisk * 0.6) : 0
+      const videoRating = Math.max(1, Math.min(100, Math.round(totalBonus - riskPenalty + Math.random() * 10)))
+
+      // Calculate boosts
+      const prodBoost = Math.floor(videoRating * 0.12)
+      const viralBoost = Math.floor(videoRating * 0.18)
+
+      // Viral chance
+      const viralChance = videoRating / 200
+      const goesViral = Math.random() < viralChance
 
       return {
         success: true,
-        message: `✅ **Music Video Created!**\n\nSong: "${songTitle}"\nBudget: £${budget.toLocaleString()}\n\nYour video should boost streams!`
+        message: `✅ **Music Video Created!**\n\nSong: "${songTitle}"\nVideo Rating: ${videoRating}/100\nProduction Boost: +${prodBoost}\nVirality Boost: +${viralBoost}${goesViral ? '\n🔥 **VIRAL!** Your video could go viral!' : ''}\n\nYour video should boost streams!`
       }
     }
 
