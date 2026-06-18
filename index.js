@@ -13,6 +13,69 @@ const processingLocks = new Map();
 const replyCooldowns = new Map();
 const inFlightMessages = new Set();
 
+// Load conversation state from database
+async function loadConversationState(userId) {
+  try {
+    const { data, error } = await supabase
+      .from('ms_discord_conversation_state')
+      .select('command, step, data')
+      .eq('discord_user_id', userId)
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+
+    return {
+      command: data.command,
+      step: data.step,
+      data: data.data
+    };
+  } catch (e) {
+    console.error('Error loading conversation state:', e);
+    return null;
+  }
+}
+
+// Save conversation state to database
+async function saveConversationState(userId, conversation) {
+  try {
+    const { error } = await supabase
+      .from('ms_discord_conversation_state')
+      .upsert({
+        discord_user_id: userId,
+        command: conversation.command,
+        step: conversation.step,
+        data: conversation.data,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'discord_user_id'
+      });
+
+    if (error) {
+      console.error('Error saving conversation state:', error);
+    }
+  } catch (e) {
+    console.error('Error saving conversation state:', e);
+  }
+}
+
+// Delete conversation state from database
+async function deleteConversationState(userId) {
+  try {
+    const { error } = await supabase
+      .from('ms_discord_conversation_state')
+      .delete()
+      .eq('discord_user_id', userId);
+
+    if (error) {
+      console.error('Error deleting conversation state:', error);
+    }
+  } catch (e) {
+    console.error('Error deleting conversation state:', e);
+  }
+}
+
 // Game constants (matching the game)
 const GENRE_TREE = [
   { genre: 'Pop', subgenres: ['Pop', 'Dance Pop', 'Synth Pop', 'Indie Pop', 'Art Pop', 'Dream Pop', 'Electropop', 'Bubblegum Pop', 'Hyperpop', 'K-Pop', 'J-Pop', 'Latin Pop', 'Arabic Pop', 'Afropop', 'City Pop', 'Chill Pop', 'Bedroom Pop'] },
@@ -369,6 +432,7 @@ Confirm? (yes/no)`;
 async function executeSongCreation(message, conversation) {
   const userId = message.author.id;
   conversations.delete(userId);
+  await deleteConversationState(userId);
   const result = await callEdgeFunction('create_song', {
     userId: message.author.id,
     ...conversation.data
@@ -403,6 +467,7 @@ Confirm album creation? (yes/no)`;
 async function executeAlbumCreation(message, conversation) {
   const userId = message.author.id;
   conversations.delete(userId);
+  await deleteConversationState(userId);
   const result = await callEdgeFunction('create_album', {
     userId: message.author.id,
     ...conversation.data
@@ -450,6 +515,7 @@ Confirm? (yes/no)`;
 async function executeMerchCreation(message, conversation) {
   const userId = message.author.id;
   conversations.delete(userId);
+  await deleteConversationState(userId);
   const result = await callEdgeFunction('create_merch', {
     userId: message.author.id,
     ...conversation.data
@@ -483,6 +549,7 @@ async function handleTourStep(message, conversation) {
 async function executeTourBooking(message, conversation) {
   const userId = message.author.id;
   conversations.delete(userId);
+  await deleteConversationState(userId);
   const result = await callEdgeFunction('book_tour', {
     userId: message.author.id,
     ...conversation.data
@@ -516,6 +583,7 @@ async function handleStudioStep(message, conversation) {
 async function executeStudioUpgrade(message, conversation) {
   const userId = message.author.id;
   conversations.delete(userId);
+  await deleteConversationState(userId);
   const result = await callEdgeFunction('upgrade_studio', {
     userId: message.author.id,
     ...conversation.data
@@ -530,7 +598,16 @@ async function executeStudioUpgrade(message, conversation) {
 // Conversation flow handlers
 async function handleConversation(message, userMessage) {
   const userId = message.author.id;
-  const conversation = conversations.get(userId);
+  let conversation = conversations.get(userId);
+
+  // Try to load from database if not in memory
+  if (!conversation) {
+    conversation = await loadConversationState(userId);
+    if (conversation) {
+      conversations.set(userId, conversation);
+      console.log('Loaded conversation from database:', conversation);
+    }
+  }
 
   // Always strip bot mention from user message
   console.log('Before strip:', userMessage);
@@ -549,6 +626,7 @@ async function handleConversation(message, userMessage) {
         command: 'create_song'
       });
       const conversation = conversations.get(userId);
+      await saveConversationState(userId, conversation);
       await handleSongStep(message, conversation);
       return;
     } else if (intent === 'create_album') {
@@ -559,6 +637,7 @@ async function handleConversation(message, userMessage) {
         command: 'create_album'
       });
       const conversation = conversations.get(userId);
+      await saveConversationState(userId, conversation);
       await handleAlbumStep(message, conversation);
       return;
     } else if (intent === 'create_merch') {
@@ -569,6 +648,7 @@ async function handleConversation(message, userMessage) {
         command: 'create_merch'
       });
       const conversation = conversations.get(userId);
+      await saveConversationState(userId, conversation);
       await handleMerchStep(message, conversation);
       return;
     } else if (intent === 'book_tour') {
@@ -579,6 +659,7 @@ async function handleConversation(message, userMessage) {
         command: 'book_tour'
       });
       const conversation = conversations.get(userId);
+      await saveConversationState(userId, conversation);
       await handleTourStep(message, conversation);
       return;
     } else if (intent === 'upgrade_studio') {
@@ -589,6 +670,7 @@ async function handleConversation(message, userMessage) {
         command: 'upgrade_studio'
       });
       const conversation = conversations.get(userId);
+      await saveConversationState(userId, conversation);
       await handleStudioStep(message, conversation);
       return;
     } else if (intent === 'view_stats') {
@@ -601,6 +683,8 @@ async function handleConversation(message, userMessage) {
         data: {},
         command: 'release_song'
       });
+      const conversation = conversations.get(userId);
+      await saveConversationState(userId, conversation);
       await message.reply(
         '📀 **Let\'s release a song!**\n\n' +
         'Which song? (Say the song title or "list" to see your unreleased songs)'
@@ -612,6 +696,8 @@ async function handleConversation(message, userMessage) {
         data: {},
         command: 'market_song'
       });
+      const conversation = conversations.get(userId);
+      await saveConversationState(userId, conversation);
       await message.reply(
         '📢 **Let\'s market a song!**\n\n' +
         'Which song? (Say the song title or "list" to see your released songs)'
@@ -623,6 +709,8 @@ async function handleConversation(message, userMessage) {
         data: {},
         command: 'create_video'
       });
+      const conversation = conversations.get(userId);
+      await saveConversationState(userId, conversation);
       await message.reply(
         '🎬 **Let\'s create a music video!**\n\n' +
         'Which song? (Say the song title or "list" to see your released songs)'
@@ -634,6 +722,8 @@ async function handleConversation(message, userMessage) {
         data: {},
         command: 'create_short'
       });
+      const conversation = conversations.get(userId);
+      await saveConversationState(userId, conversation);
       await message.reply(
         '📱 **Let\'s create a short!**\n\n' +
         'Which song? (Say the song title or "list" to see your released songs)'
@@ -645,6 +735,8 @@ async function handleConversation(message, userMessage) {
         data: {},
         command: 'sign_label'
       });
+      const conversation = conversations.get(userId);
+      await saveConversationState(userId, conversation);
       await message.reply(
         '📝 **Let\'s sign with a label!**\n\n' +
         'Which label? (Say the label name or "list" to see available labels)'
@@ -720,6 +812,7 @@ async function continueConversation(message, userMessage, conversation) {
   // Check for cancel or help FIRST
   if (lower === 'cancel' || lower === 'stop' || lower === 'nevermind') {
     conversations.delete(userId);
+    await deleteConversationState(userId);
     await message.reply('❌ Conversation cancelled.');
     return;
   }
@@ -746,6 +839,7 @@ async function continueConversation(message, userMessage, conversation) {
       return;
     } else if (lower === 'no' || lower === 'n') {
       conversations.delete(userId);
+      await deleteConversationState(userId);
       await message.reply('❌ Cancelled.');
       return;
     }
@@ -785,6 +879,7 @@ async function continueConversation(message, userMessage, conversation) {
       return;
     default:
       conversations.delete(userId);
+      await deleteConversationState(userId);
       await message.reply('Conversation reset. Try again!');
       return;
   }
@@ -802,6 +897,7 @@ async function continueSongCreation(message, input, conversation) {
       conversation.data.title = input;
       conversation.step = 'genre';
       conversations.set(userId, conversation);
+      await saveConversationState(userId, conversation);
       await message.reply(
         `Title: **"${input}"**\n\n` +
         'What genre?\n' +
@@ -818,6 +914,7 @@ async function continueSongCreation(message, input, conversation) {
       conversation.data.genre = input.toLowerCase();
       conversation.step = 'explicit';
       conversations.set(userId, conversation);
+      await saveConversationState(userId, conversation);
       await message.reply(
         `Genre: **${input}**\n\n` +
         'Should this song be explicit? (yes/no)'
@@ -829,6 +926,7 @@ async function continueSongCreation(message, input, conversation) {
       conversation.data.explicit = isExplicit;
       conversation.step = 'features';
       conversations.set(userId, conversation);
+      await saveConversationState(userId, conversation);
       await message.reply(
         `Explicit: **${isExplicit ? 'Yes' : 'No'}**\n\n` +
         'What features should the song have?\n' +
@@ -846,6 +944,7 @@ async function continueSongCreation(message, input, conversation) {
       conversation.data.features = selectedFeatures;
       conversation.step = 'producer';
       conversations.set(userId, conversation);
+      await saveConversationState(userId, conversation);
       const producerList = PRODUCERS.map((p, i) => `${i}. ${p.name} (£${p.cost.toLocaleString()})`).join('\n');
       await message.reply(
         `Features: **${selectedFeatures.join(', ')}**\n\n` +
@@ -863,6 +962,7 @@ async function continueSongCreation(message, input, conversation) {
       conversation.data.producerIndex = PRODUCERS.indexOf(producerMatch);
       conversation.step = 'writer';
       conversations.set(userId, conversation);
+      await saveConversationState(userId, conversation);
       const writerList = WRITERS.map((w, i) => `${i}. ${w.name} (£${w.cost.toLocaleString()})`).join('\n');
       await message.reply(
         `Producer: **${producerMatch.name}**\n\n` +
@@ -880,6 +980,7 @@ async function continueSongCreation(message, input, conversation) {
       conversation.data.writerIndex = WRITERS.indexOf(writerMatch);
       conversation.step = 'studio';
       conversations.set(userId, conversation);
+      await saveConversationState(userId, conversation);
       const studioList = STUDIOS.map((s, i) => `${i}. ${s.name} (£${s.cost.toLocaleString()})`).join('\n');
       await message.reply(
         `Writer: **${writerMatch.name}**\n\n` +
@@ -897,6 +998,7 @@ async function continueSongCreation(message, input, conversation) {
       conversation.data.studioIndex = STUDIOS.indexOf(studioMatch);
       conversation.step = 'album';
       conversations.set(userId, conversation);
+      await saveConversationState(userId, conversation);
       await message.reply(
         `Studio: **${studioMatch.name}**\n\n` +
         'Add to an album? (Enter album name or "no" for standalone single)'
@@ -911,6 +1013,7 @@ async function continueSongCreation(message, input, conversation) {
       }
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
+      await saveConversationState(userId, conversation);
       const featureCost = (conversation.data.features || []).reduce((sum, feature) => sum + (FEATURE_COSTS[feature] || 0), 0);
       const producer = PRODUCERS[conversation.data.producerIndex || 0];
       const writer = WRITERS[conversation.data.writerIndex || 0];
@@ -965,6 +1068,7 @@ async function continueAlbumCreation(message, input, conversation) {
       conversation.data.title = input;
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
+      await saveConversationState(userId, conversation);
       await message.reply(
         `Album name: **"${input}"**\n\n` +
         'Confirm album creation? (yes/no)'
@@ -1003,6 +1107,7 @@ async function continueMerchCreation(message, input, conversation) {
       conversation.data.type = input;
       conversation.step = 'quantity';
       conversations.set(userId, conversation);
+      await saveConversationState(userId, conversation);
       await message.reply(
         `Type: **${input}**\n\n` +
         'How many units to produce?'
@@ -1018,6 +1123,7 @@ async function continueMerchCreation(message, input, conversation) {
       conversation.data.quantity = quantity;
       conversation.step = 'price';
       conversations.set(userId, conversation);
+      await saveConversationState(userId, conversation);
       await message.reply(
         `Quantity: **${quantity}**\n\n` +
         'Set price per unit? (Amount in £, or "default" for auto-pricing)'
@@ -1037,6 +1143,7 @@ async function continueMerchCreation(message, input, conversation) {
       }
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
+      await saveConversationState(userId, conversation);
       const summary = `
 **👕 Merch Summary**
 Type: ${conversation.data.type}
@@ -1079,6 +1186,7 @@ async function continueTourBooking(message, input, conversation) {
       conversation.data.venue = input;
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
+      await saveConversationState(userId, conversation);
       await message.reply(
         `Venue: **${input}**\n\n` +
         'Confirm tour booking? (yes/no)'
@@ -1118,6 +1226,7 @@ async function continueStudioUpgrade(message, input, conversation) {
       conversation.data.component = input;
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
+      await saveConversationState(userId, conversation);
       await message.reply(
         `Component: **${input}**\n\n` +
         'Confirm studio upgrade? (yes/no)'
@@ -1152,6 +1261,7 @@ async function continueSongRelease(message, input, conversation) {
       conversation.data.songTitle = input;
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
+      await saveConversationState(userId, conversation);
       await message.reply(
         `Song: **"${input}"**\n\n` +
         'Confirm release? (yes/no)'
@@ -1186,6 +1296,7 @@ async function continueSongMarketing(message, input, conversation) {
       conversation.data.songTitle = input;
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
+      await saveConversationState(userId, conversation);
       await message.reply(
         `Song: **"${input}"**\n\n` +
         'Marketing cost will be auto-calculated based on your fame.\n\nConfirm marketing campaign? (yes/no)'
@@ -1221,6 +1332,7 @@ async function continueVideoCreation(message, input, conversation) {
       conversation.data.choiceIndex = 0;
       conversation.step = 'choices';
       conversations.set(userId, conversation);
+      await saveConversationState(userId, conversation);
       const choiceSet = VIDEO_CHOICES[0];
       const options = choiceSet.options.map((o, i) => `${i + 1}. ${o.label} (bonus: +${o.bonus}, risk: ${o.risk})`).join('\n');
       await message.reply(
@@ -1247,6 +1359,7 @@ async function continueVideoCreation(message, input, conversation) {
       if (choiceIndex < VIDEO_CHOICES.length - 1) {
         conversation.data.choiceIndex = choiceIndex + 1;
         conversations.set(userId, conversation);
+        await saveConversationState(userId, conversation);
         const nextChoiceSet = VIDEO_CHOICES[choiceIndex + 1];
         const options = nextChoiceSet.options.map((o, i) => `${i + 1}. ${o.label} (bonus: +${o.bonus}, risk: ${o.risk})`).join('\n');
         await message.reply(
@@ -1255,6 +1368,7 @@ async function continueVideoCreation(message, input, conversation) {
       } else {
         conversation.step = 'confirm';
         conversations.set(userId, conversation);
+        await saveConversationState(userId, conversation);
         const summary = conversation.data.choices.map(c => `• ${c.label} (bonus: +${c.bonus}, risk: ${c.risk})`).join('\n');
         await message.reply(
           `**🎬 Video Summary**\nSong: "${conversation.data.songTitle}"\n\nChoices:\n${summary}\n\nConfirm video creation? (yes/no)`
@@ -1291,6 +1405,7 @@ async function continueShortCreation(message, input, conversation) {
       conversation.data.songTitle = input;
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
+      await saveConversationState(userId, conversation);
       await message.reply(
         `Song: **"${input}"**\n\n` +
         'Confirm short creation? (yes/no)'
@@ -1325,6 +1440,7 @@ async function continueLabelSigning(message, input, conversation) {
       conversation.data.labelName = input;
       conversation.step = 'confirm';
       conversations.set(userId, conversation);
+      await saveConversationState(userId, conversation);
       await message.reply(
         `Label: **"${input}"**\n\n` +
         'Confirm label signing? (yes/no)'
