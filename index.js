@@ -420,9 +420,9 @@ async function handleConversation(message, userMessage) {
       await handleStudioStep(message, conversation);
       return;
     } else if (intent === 'view_stats') {
-      return handleGameCommand(message, 'view stats');
+      return handleGameCommand(message, 'view_stats');
     } else if (intent === 'advance_week') {
-      return handleGameCommand(message, 'advance week');
+      return handleGameCommand(message, 'advance_week');
     } else if (intent === 'release_song') {
       conversations.set(userId, {
         step: 'song_select',
