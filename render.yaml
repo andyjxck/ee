@@ -1,0 +1,13 @@
+services:
+  - type: worker
+    name: tony-discord-bot
+    env: node
+    buildCommand: cd discord-bot && npm install
+    startCommand: node discord-bot/index.js
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: SUPABASE_EDGE_FUNCTION_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
