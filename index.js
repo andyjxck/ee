@@ -4,7 +4,6 @@ const axios = require('axios');
 // Configuration from environment variables
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const SUPABASE_EDGE_FUNCTION_URL = process.env.SUPABASE_EDGE_FUNCTION_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 // Debug: Log environment variables (without exposing the full token)
 console.log('Environment check:');
@@ -32,7 +31,6 @@ async function callEdgeFunction(type, data) {
     }, {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       },
     });
     return response.data;
