@@ -9,6 +9,7 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 // Conversation state tracker (in-memory, use Redis for production)
 const conversations = new Map();
 const processedMessages = new Set();
+const processingLocks = new Map();
 
 // Game constants (matching the game)
 const GENRES = ['pop', 'hip hop', 'rock', 'electronic', 'r&b', 'country', 'jazz', 'classical', 'indie', 'alternative'];
@@ -916,19 +917,28 @@ client.on('messageCreate', async (message) => {
   // Ignore bot messages
   if (message.author.bot) return;
 
-  // Prevent duplicate processing
-  const messageId = message.id;
-  if (processedMessages.has(messageId)) {
-    console.log('Duplicate message detected, skipping:', messageId);
+  // Per-user lock to prevent concurrent processing
+  const userId = message.author.id;
+  if (processingLocks.has(userId)) {
+    console.log('User already being processed, skipping:', userId);
     return;
   }
-  processedMessages.add(messageId);
+  processingLocks.set(userId, true);
 
-  // Clean up old message IDs (keep last 1000)
-  if (processedMessages.size > 1000) {
-    const first = processedMessages.values().next().value;
-    processedMessages.delete(first);
-  }
+  try {
+    // Prevent duplicate processing
+    const messageId = message.id;
+    if (processedMessages.has(messageId)) {
+      console.log('Duplicate message detected, skipping:', messageId);
+      return;
+    }
+    processedMessages.add(messageId);
+
+    // Clean up old message IDs (keep last 1000)
+    if (processedMessages.size > 1000) {
+      const first = processedMessages.values().next().value;
+      processedMessages.delete(first);
+    }
 
   // Handle DMs
   if (message.channel.type === 1) { // DM
@@ -985,6 +995,10 @@ client.on('messageCreate', async (message) => {
     // Use conversation handler for everything else
     await handleConversation(message, cleanMessage);
     return;
+  }
+  } finally {
+    // Release the lock
+    processingLocks.delete(userId);
   }
 });
 
