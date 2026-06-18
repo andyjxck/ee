@@ -481,8 +481,8 @@ async function handleConversation(message, userMessage) {
       await message.reply('No active conversation to cancel.');
       return;
     } else {
-      // Fall through to AI chat
-      await handleChat(message, cleanMessage);
+      // Fall through to AI chat - DISABLED due to duplicate response issues
+      await message.reply("I'm Tony, your Void Musician assistant. I can help you with game commands like:\n\n• create song\n• create album\n• book tour\n• upgrade studio\n• release song\n• market song\n• create video\n• create short\n• sign label\n• stats\n• advance week\n\nJust mention me with a command!");
       return;
     }
   }
