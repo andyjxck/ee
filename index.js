@@ -10,6 +10,7 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const conversations = new Map();
 const processedMessages = new Set();
 const processingLocks = new Map();
+const replyCooldowns = new Map();
 
 // Game constants (matching the game)
 const GENRES = ['pop', 'hip hop', 'rock', 'electronic', 'r&b', 'country', 'jazz', 'classical', 'indie', 'alternative'];
@@ -1281,14 +1282,13 @@ client.on('messageCreate', async (message) => {
   // Ignore bot messages
   if (message.author.bot) return;
 
-  // Prevent duplicate processing using message ID + timestamp
-  const messageKey = `${message.id}-${message.createdTimestamp}`;
-  console.log('Processing message:', messageKey, 'Content:', message.content);
-  if (processedMessages.has(messageKey)) {
-    console.log('Duplicate message detected, skipping:', messageKey);
+  // Prevent duplicate processing using message ID only
+  console.log('Processing message:', message.id, 'Content:', message.content);
+  if (processedMessages.has(message.id)) {
+    console.log('Duplicate message detected, skipping:', message.id);
     return;
   }
-  processedMessages.add(messageKey);
+  processedMessages.add(message.id);
   console.log('Added to processedMessages, total:', processedMessages.size);
 
   // Clean up old message keys (keep last 1000)
@@ -1304,6 +1304,15 @@ client.on('messageCreate', async (message) => {
     return;
   }
   processingLocks.set(userId, true);
+
+  // Check if user is in cooldown (just replied recently)
+  const now = Date.now();
+  const lastReply = replyCooldowns.get(userId);
+  if (lastReply && now - lastReply < 2000) {
+    console.log('User in cooldown, skipping:', userId);
+    processingLocks.delete(userId);
+    return;
+  }
 
   try {
 
@@ -1366,6 +1375,8 @@ client.on('messageCreate', async (message) => {
   } finally {
     // Release the lock
     processingLocks.delete(userId);
+    // Update cooldown
+    replyCooldowns.set(userId, Date.now());
   }
 });
 
