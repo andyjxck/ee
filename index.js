@@ -919,11 +919,13 @@ client.on('messageCreate', async (message) => {
 
   // Prevent duplicate processing using message ID + timestamp
   const messageKey = `${message.id}-${message.createdTimestamp}`;
+  console.log('Processing message:', messageKey, 'Content:', message.content);
   if (processedMessages.has(messageKey)) {
     console.log('Duplicate message detected, skipping:', messageKey);
     return;
   }
   processedMessages.add(messageKey);
+  console.log('Added to processedMessages, total:', processedMessages.size);
 
   // Clean up old message keys (keep last 1000)
   if (processedMessages.size > 1000) {
