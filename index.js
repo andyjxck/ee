@@ -1282,10 +1282,19 @@ client.on('messageCreate', async (message) => {
   // Ignore bot messages
   if (message.author.bot) return;
 
+  // Per-user lock to prevent concurrent processing (check FIRST)
+  const userId = message.author.id;
+  if (processingLocks.has(userId)) {
+    console.log('User already being processed, skipping:', userId);
+    return;
+  }
+  processingLocks.set(userId, true);
+
   // Prevent duplicate processing using message ID only
   console.log('Processing message:', message.id, 'Content:', message.content);
   if (processedMessages.has(message.id)) {
     console.log('Duplicate message detected, skipping:', message.id);
+    processingLocks.delete(userId);
     return;
   }
   processedMessages.add(message.id);
@@ -1297,18 +1306,10 @@ client.on('messageCreate', async (message) => {
     processedMessages.delete(first);
   }
 
-  // Per-user lock to prevent concurrent processing
-  const userId = message.author.id;
-  if (processingLocks.has(userId)) {
-    console.log('User already being processed, skipping:', userId);
-    return;
-  }
-  processingLocks.set(userId, true);
-
   // Check if user is in cooldown (just replied recently)
   const now = Date.now();
   const lastReply = replyCooldowns.get(userId);
-  if (lastReply && now - lastReply < 2000) {
+  if (lastReply && now - lastReply < 5000) {
     console.log('User in cooldown, skipping:', userId);
     processingLocks.delete(userId);
     return;
