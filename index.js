@@ -4,15 +4,15 @@ const axios = require('axios');
 // Configuration from environment variables
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const SUPABASE_EDGE_FUNCTION_URL = process.env.SUPABASE_EDGE_FUNCTION_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Debug: Log environment variables (without exposing the full token)
 console.log('Environment check:');
 console.log('DISCORD_TOKEN exists:', !!DISCORD_TOKEN);
 console.log('DISCORD_TOKEN length:', DISCORD_TOKEN ? DISCORD_TOKEN.length : 0);
 console.log('SUPABASE_EDGE_FUNCTION_URL exists:', !!SUPABASE_EDGE_FUNCTION_URL);
-console.log('SUPABASE_ANON_KEY exists:', !!SUPABASE_ANON_KEY);
-console.log('SUPABASE_ANON_KEY length:', SUPABASE_ANON_KEY ? SUPABASE_ANON_KEY.length : 0);
+console.log('SUPABASE_SERVICE_ROLE_KEY exists:', !!SUPABASE_SERVICE_ROLE_KEY);
+console.log('SUPABASE_SERVICE_ROLE_KEY length:', SUPABASE_SERVICE_ROLE_KEY ? SUPABASE_SERVICE_ROLE_KEY.length : 0);
 
 // Create Discord client
 const client = new Client({
@@ -34,7 +34,7 @@ async function callEdgeFunction(type, data) {
     }, {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
       },
     });
     return response.data;
