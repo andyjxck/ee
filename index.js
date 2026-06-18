@@ -239,10 +239,9 @@ Confirm? (yes/no)`;
 async function executeSongCreation(message, conversation) {
   const userId = message.author.id;
   conversations.delete(userId);
-  const { albumTitle, ...dataToSend } = conversation.data;
   const result = await callEdgeFunction('create_song', {
     userId: message.author.id,
-    ...dataToSend
+    ...conversation.data
   });
   if (result.success) {
     await message.reply(`✅ **Song created!**\n\n${result.message}`);

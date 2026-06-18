@@ -193,7 +193,7 @@ async function executeGameCommand(command: string, params: any, careerId: string
 
   switch (cmd) {
     case 'create_song': {
-      const { title, genre, explicit, features, producerCost, writerCost, studioCost } = params
+      const { title, genre, explicit, features, producerCost, writerCost, studioCost, albumTitle } = params
 
       // Calculate total cost
       const totalCost = (producerCost || 0) + (writerCost || 0) + (studioCost || 0)
@@ -201,6 +201,36 @@ async function executeGameCommand(command: string, params: any, careerId: string
       // Check if player has enough cash
       if (state.cash < totalCost) {
         return { success: false, error: `Not enough cash. Need £${totalCost.toLocaleString()}, have £${state.cash.toLocaleString()}` }
+      }
+
+      // Create album if specified
+      let albumId = null
+      if (albumTitle) {
+        const { data: existingAlbum } = await supabase
+          .from('ms_albums')
+          .select('id')
+          .eq('career_id', careerId)
+          .eq('title', albumTitle)
+          .single()
+
+        if (existingAlbum) {
+          albumId = existingAlbum.id
+        } else {
+          const { data: newAlbum, error: albumError } = await supabase
+            .from('ms_albums')
+            .insert({
+              career_id: careerId,
+              title: albumTitle,
+              created_at: new Date().toISOString(),
+            })
+            .select('id')
+            .single()
+
+          if (albumError) {
+            return { success: false, error: `Failed to create album: ${albumError.message}` }
+          }
+          albumId = newAlbum.id
+        }
       }
 
       // Generate song ID
@@ -213,6 +243,7 @@ async function executeGameCommand(command: string, params: any, careerId: string
         title,
         genre_id: genre,
         is_explicit: explicit || false,
+        album_id: albumId,
         created_at: new Date().toISOString(),
       })
 
@@ -225,7 +256,7 @@ async function executeGameCommand(command: string, params: any, careerId: string
 
       return {
         success: true,
-        message: `✅ **Song Created!**\n\nTitle: "${title}"\nGenre: ${genre}\nTotal Cost: £${totalCost.toLocaleString()}\n\nUse "release song" to release it when ready!`
+        message: `✅ **Song Created!**\n\nTitle: "${title}"\nGenre: ${genre}\n${albumTitle ? `Album: "${albumTitle}"\n` : ''}Total Cost: £${totalCost.toLocaleString()}\n\nUse "release song" to release it when ready!`
       }
     }
 
