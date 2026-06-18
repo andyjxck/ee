@@ -5,6 +5,12 @@ const axios = require('axios');
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const SUPABASE_EDGE_FUNCTION_URL = process.env.SUPABASE_EDGE_FUNCTION_URL;
 
+// Debug: Log environment variables (without exposing the full token)
+console.log('Environment check:');
+console.log('DISCORD_TOKEN exists:', !!DISCORD_TOKEN);
+console.log('DISCORD_TOKEN length:', DISCORD_TOKEN ? DISCORD_TOKEN.length : 0);
+console.log('SUPABASE_EDGE_FUNCTION_URL exists:', !!SUPABASE_EDGE_FUNCTION_URL);
+
 // Create Discord client
 const client = new Client({
   intents: [
