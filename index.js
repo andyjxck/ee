@@ -917,6 +917,20 @@ client.on('messageCreate', async (message) => {
   // Ignore bot messages
   if (message.author.bot) return;
 
+  // Prevent duplicate processing using message ID + timestamp
+  const messageKey = `${message.id}-${message.createdTimestamp}`;
+  if (processedMessages.has(messageKey)) {
+    console.log('Duplicate message detected, skipping:', messageKey);
+    return;
+  }
+  processedMessages.add(messageKey);
+
+  // Clean up old message keys (keep last 1000)
+  if (processedMessages.size > 1000) {
+    const first = processedMessages.values().next().value;
+    processedMessages.delete(first);
+  }
+
   // Per-user lock to prevent concurrent processing
   const userId = message.author.id;
   if (processingLocks.has(userId)) {
@@ -926,19 +940,6 @@ client.on('messageCreate', async (message) => {
   processingLocks.set(userId, true);
 
   try {
-    // Prevent duplicate processing
-    const messageId = message.id;
-    if (processedMessages.has(messageId)) {
-      console.log('Duplicate message detected, skipping:', messageId);
-      return;
-    }
-    processedMessages.add(messageId);
-
-    // Clean up old message IDs (keep last 1000)
-    if (processedMessages.size > 1000) {
-      const first = processedMessages.values().next().value;
-      processedMessages.delete(first);
-    }
 
   // Handle DMs
   if (message.channel.type === 1) { // DM
