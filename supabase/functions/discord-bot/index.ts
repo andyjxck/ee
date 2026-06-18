@@ -117,7 +117,15 @@ async function getGroqResponse(message: string, context: string): Promise<string
     const data = await response.json()
     console.log('Groq response data:', JSON.stringify(data).substring(0, 200))
 
-    return data.choices?.[0]?.message?.content || "I couldn't process that. Try again!"
+    let content = data.choices?.[0]?.message?.content || "I couldn't process that. Try again!"
+    
+    // Strip out thinking/reasoning tags from the response
+    content = content.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+    content = content.replace(/```thinking[\s\S]*?```/gi, '')
+    content = content.replace(/Thinking: [\s\S]*?(?=\n\n|$)/gi, '')
+    content = content.trim()
+    
+    return content
   } catch (error) {
     console.error('Groq API error:', error)
     return "Sorry, I'm having trouble thinking right now. Try again later."
