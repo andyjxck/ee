@@ -1,10 +1,18 @@
 const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const axios = require('axios');
+const { createClient } = require('@supabase/supabase-js');
 
 // Configuration from environment variables
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const SUPABASE_EDGE_FUNCTION_URL = process.env.SUPABASE_EDGE_FUNCTION_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Initialize Supabase client for conversation state
+const supabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY 
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+  : null;
 
 // Conversation state tracker (in-memory, use Redis for production)
 const conversations = new Map();
@@ -15,6 +23,7 @@ const inFlightMessages = new Set();
 
 // Load conversation state from database
 async function loadConversationState(userId) {
+  if (!supabase) return null;
   try {
     const { data, error } = await supabase
       .from('ms_discord_conversation_state')
@@ -39,6 +48,7 @@ async function loadConversationState(userId) {
 
 // Save conversation state to database
 async function saveConversationState(userId, conversation) {
+  if (!supabase) return;
   try {
     const { error } = await supabase
       .from('ms_discord_conversation_state')
@@ -62,6 +72,7 @@ async function saveConversationState(userId, conversation) {
 
 // Delete conversation state from database
 async function deleteConversationState(userId) {
+  if (!supabase) return;
   try {
     const { error } = await supabase
       .from('ms_discord_conversation_state')
@@ -364,10 +375,12 @@ async function handleSongStep(message, conversation) {
       'What should the song be called?'
     );
   } else if (step === 'genre') {
+    const mainGenres = GENRE_TREE.map(g => g.genre).join(', ');
     await message.reply(
       `Title: **"${data.title}"**\n\n` +
       'What genre?\n' +
-      'Options: ' + GENRES.join(', ')
+      'Main genres: ' + mainGenres + '\n' +
+      '(Or type any subgenre like "Trap", "Synth Pop", etc.)'
     );
   } else if (step === 'explicit') {
     await message.reply(
@@ -898,17 +911,20 @@ async function continueSongCreation(message, input, conversation) {
       conversation.step = 'genre';
       conversations.set(userId, conversation);
       await saveConversationState(userId, conversation);
+      const mainGenres = GENRE_TREE.map(g => g.genre).join(', ');
       await message.reply(
         `Title: **"${input}"**\n\n` +
         'What genre?\n' +
-        'Options: ' + GENRES.join(', ')
+        'Main genres: ' + mainGenres + '\n' +
+        '(Or type any subgenre like "Trap", "Synth Pop", etc.)'
       );
       return;
 
     case 'genre':
       console.log('Genre input:', input, 'Lower:', input.toLowerCase());
       if (!GENRES.includes(input.toLowerCase())) {
-        await message.reply(`Please choose a valid genre: ${GENRES.join(', ')}`);
+        const mainGenres = GENRE_TREE.map(g => g.genre).join(', ');
+        await message.reply(`Please choose a valid genre.\nMain genres: ${mainGenres}\n(Or type any subgenre like "Trap", "Synth Pop", etc.)`);
         return;
       }
       conversation.data.genre = input.toLowerCase();
