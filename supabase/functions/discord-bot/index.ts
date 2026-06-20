@@ -383,12 +383,12 @@ async function executeGameCommand(command: string, params: any, careerId: string
       // Generate song ID
       const songId = crypto.randomUUID()
 
-      // Create song
+      // Create song (store genre as string for now, not UUID)
       const { error: songError } = await supabase.from('ms_songs').insert({
         id: songId,
         career_id: careerId,
         title,
-        genre_id: genre,
+        genre: genre, // Store as string instead of genre_id
         is_explicit: explicit || false,
         album_id: albumId,
         created_at: new Date().toISOString(),
