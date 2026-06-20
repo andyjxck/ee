@@ -105,8 +105,8 @@ const GENRE_TREE = [
   { genre: 'Dance', subgenres: ['Dance', 'EDM', 'Disco', 'Nu-Disco', 'Funk', 'Club', 'Eurodance', 'Hi-NRG', 'Italo Disco', 'Electro'] },
 ];
 
-// Flat list of all genres for easy lookup
-const GENRES = GENRE_TREE.flatMap(g => g.subgenres);
+// Flat list of all genres for easy lookup (lowercase for case-insensitive matching)
+const GENRES = GENRE_TREE.flatMap(g => g.subgenres.map(s => s.toLowerCase()));
 const SONG_FEATURES = ['Sailor Twift', 'Shed Eeran', 'Good Bunny', 'Dshovel', 'Billy Eyelash', 'Arianda Grandeur', 'The Weaknd', 'Candy West', 'Rianna', 'Bruno Bars', 'Dustin Bieber', 'M&M', 'Beyonder', 'Michael Jacket', 'Elfish Presley', 'Rob Marley', 'Maradona', 'The Beetles', 'Draft Punk', 'Stellar Voice', 'Melody Queen'];
 const MERCH_TYPES = ['tshirt', 'hoodie', 'poster', 'vinyl', 'cap', 'jacket', 'figurine', 'fragrance', 'sneakers'];
 const TOUR_VENUES = ['open-mic', 'local-bar', 'small-club', 'mid-venue', 'theatre', 'arena', 'stadium', 'world-tour'];
@@ -921,9 +921,6 @@ async function continueSongCreation(message, input, conversation) {
       return;
 
     case 'genre':
-      console.log('Genre input:', input, 'Lower:', input.toLowerCase());
-      console.log('GENRES array:', GENRES.slice(0, 10), '...');
-      console.log('Is Pop in GENRES?', GENRES.includes('pop'));
       if (!GENRES.includes(input.toLowerCase())) {
         const mainGenres = GENRE_TREE.map(g => g.genre).join(', ');
         await message.reply(`Please choose a valid genre.\nMain genres: ${mainGenres}\n(Or type any subgenre like "Trap", "Synth Pop", etc.)`);
