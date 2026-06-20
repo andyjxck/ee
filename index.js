@@ -951,9 +951,23 @@ async function continueSongCreation(message, input, conversation) {
       return;
 
     case 'features':
+      // Allow skipping features with "no", "none", "skip", etc.
+      const skipWords = ['no', 'none', 'skip', 'none of the above', 'no features', 'empty'];
+      if (skipWords.includes(input.toLowerCase().trim())) {
+        conversation.data.features = [];
+        conversation.step = 'producer';
+        conversations.set(userId, conversation);
+        await saveConversationState(userId, conversation);
+        const producerList = PRODUCERS.map((p, i) => `${i}. ${p.name} (£${p.cost.toLocaleString()})`).join('\n');
+        await message.reply(
+          'Features: None\n\n' +
+          'Choose a producer:\n' + producerList + '\n\n(Say the number or name)'
+        );
+        return;
+      }
       const selectedFeatures = input.split(',').map(f => f.trim()).filter(f => SONG_FEATURES.includes(f));
       if (selectedFeatures.length === 0) {
-        await message.reply(`Please choose valid features: ${SONG_FEATURES.join(', ')}`);
+        await message.reply(`Please choose valid features (or say "no" to skip): ${SONG_FEATURES.join(', ')}`);
         return;
       }
       conversation.data.features = selectedFeatures;
@@ -968,10 +982,24 @@ async function continueSongCreation(message, input, conversation) {
       return;
 
     case 'producer':
+      // Allow skipping to self (default) with "no", "none", "self", etc.
+      const skipProducer = ['no', 'none', 'skip', 'self', 'default'];
+      if (skipProducer.includes(input.toLowerCase().trim())) {
+        conversation.data.producerIndex = 0; // Self
+        conversation.step = 'writer';
+        conversations.set(userId, conversation);
+        await saveConversationState(userId, conversation);
+        const writerList = WRITERS.map((w, i) => `${i}. ${w.name} (£${w.cost.toLocaleString()})`).join('\n');
+        await message.reply(
+          'Producer: Self\n\n' +
+          'Choose a writer:\n' + writerList + '\n\n(Say the number or name, or "self" to skip)'
+        );
+        return;
+      }
       const producerIndex = parseInt(input);
       const producerMatch = PRODUCERS.find((p, i) => i === producerIndex || p.name.toLowerCase() === input.toLowerCase());
       if (!producerMatch) {
-        await message.reply('Please choose a valid producer (number or name).');
+        await message.reply('Please choose a valid producer (number or name, or "self" to skip).');
         return;
       }
       conversation.data.producerIndex = PRODUCERS.indexOf(producerMatch);
@@ -981,15 +1009,29 @@ async function continueSongCreation(message, input, conversation) {
       const writerList = WRITERS.map((w, i) => `${i}. ${w.name} (£${w.cost.toLocaleString()})`).join('\n');
       await message.reply(
         `Producer: **${producerMatch.name}**\n\n` +
-        'Choose a writer:\n' + writerList + '\n\n(Say the number or name)'
+        'Choose a writer:\n' + writerList + '\n\n(Say the number or name, or "self" to skip)'
       );
       return;
 
     case 'writer':
+      // Allow skipping to self (default) with "no", "none", "self", etc.
+      const skipWriter = ['no', 'none', 'skip', 'self', 'default'];
+      if (skipWriter.includes(input.toLowerCase().trim())) {
+        conversation.data.writerIndex = 0; // Self
+        conversation.step = 'studio';
+        conversations.set(userId, conversation);
+        await saveConversationState(userId, conversation);
+        const studioList = STUDIOS.map((s, i) => `${i}. ${s.name} (£${s.cost.toLocaleString()})`).join('\n');
+        await message.reply(
+          'Writer: Self\n\n' +
+          'Choose a studio:\n' + studioList + '\n\n(Say the number or name, or "self" to skip)'
+        );
+        return;
+      }
       const writerIndex = parseInt(input);
       const writerMatch = WRITERS.find((w, i) => i === writerIndex || w.name.toLowerCase() === input.toLowerCase());
       if (!writerMatch) {
-        await message.reply('Please choose a valid writer (number or name).');
+        await message.reply('Please choose a valid writer (number or name, or "self" to skip).');
         return;
       }
       conversation.data.writerIndex = WRITERS.indexOf(writerMatch);
@@ -999,15 +1041,28 @@ async function continueSongCreation(message, input, conversation) {
       const studioList = STUDIOS.map((s, i) => `${i}. ${s.name} (£${s.cost.toLocaleString()})`).join('\n');
       await message.reply(
         `Writer: **${writerMatch.name}**\n\n` +
-        'Choose a studio:\n' + studioList + '\n\n(Say the number or name)'
+        'Choose a studio:\n' + studioList + '\n\n(Say the number or name, or "self" to skip)'
       );
       return;
 
     case 'studio':
+      // Allow skipping to self (default) with "no", "none", "self", etc.
+      const skipStudio = ['no', 'none', 'skip', 'self', 'default', 'your studio'];
+      if (skipStudio.includes(input.toLowerCase().trim())) {
+        conversation.data.studioIndex = 0; // Your Studio
+        conversation.step = 'album';
+        conversations.set(userId, conversation);
+        await saveConversationState(userId, conversation);
+        await message.reply(
+          'Studio: Your Studio\n\n' +
+          'Add to an album? (Enter album name or "no" for standalone single)'
+        );
+        return;
+      }
       const studioIndex = parseInt(input);
       const studioMatch = STUDIOS.find((s, i) => i === studioIndex || s.name.toLowerCase() === input.toLowerCase());
       if (!studioMatch) {
-        await message.reply('Please choose a valid studio (number or name).');
+        await message.reply('Please choose a valid studio (number or name, or "self" to skip).');
         return;
       }
       conversation.data.studioIndex = STUDIOS.indexOf(studioMatch);
