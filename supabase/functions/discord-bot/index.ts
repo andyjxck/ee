@@ -345,9 +345,9 @@ async function executeGameCommand(command: string, params: any, careerId: string
       // Calculate total cost
       const totalCost = producer.cost + writer.cost + studio.cost
 
-      // Check if player has enough cash
-      if (state.cash < totalCost) {
-        return { success: false, error: `Not enough cash. Need £${totalCost.toLocaleString()}, have £${state.cash.toLocaleString()}` }
+      // Check if player has enough cash (net_worth in ms_player_profiles)
+      if (state.net_worth < totalCost) {
+        return { success: false, error: `Not enough cash. Need £${totalCost.toLocaleString()}, have £${state.net_worth.toLocaleString()}` }
       }
 
       // Create album if specified
@@ -383,7 +383,7 @@ async function executeGameCommand(command: string, params: any, careerId: string
       // Generate song ID
       const songId = crypto.randomUUID()
 
-      // Look up genre ID from ms_genres table
+      // Look up genre ID from ms_genres table (cast genre to enum type)
       let genreId = null
       if (genre) {
         const { data: genreData } = await supabase
@@ -397,12 +397,13 @@ async function executeGameCommand(command: string, params: any, careerId: string
         }
       }
 
-      // Create song
+      // Create song - genre_id is required, genre_text is optional
       const { error: songError } = await supabase.from('ms_songs').insert({
         id: songId,
         career_id: careerId,
         title,
-        genre_id: genreId,
+        genre_id: genreId, // Required UUID
+        genre_text: genre, // Optional text field
         is_explicit: explicit || false,
         album_id: albumId,
         created_at: new Date().toISOString(),
@@ -412,8 +413,8 @@ async function executeGameCommand(command: string, params: any, careerId: string
         return { success: false, error: `Failed to create song: ${songError.message}` }
       }
 
-      // Deduct cash
-      await supabase.from('ms_careers').update({ cash: state.cash - totalCost }).eq('id', careerId)
+      // Deduct cash - cash is in ms_player_profiles not ms_careers
+      await supabase.from('ms_player_profiles').update({ net_worth: state.net_worth - totalCost }).eq('career_id', careerId)
 
       return {
         success: true,
@@ -427,13 +428,12 @@ async function executeGameCommand(command: string, params: any, careerId: string
       // Generate album ID
       const albumId = crypto.randomUUID()
 
-      // Create album
+      // Create album - schema uses 'title' not 'name'
       const { error: albumError } = await supabase.from('ms_albums').insert({
         id: albumId,
         career_id: careerId,
-        name,
+        title: name, // Schema uses 'title'
         created_at: new Date().toISOString(),
-        released: false,
       })
 
       if (albumError) {
@@ -442,7 +442,7 @@ async function executeGameCommand(command: string, params: any, careerId: string
 
       return {
         success: true,
-        message: `✅ **Album Created!**\n\nName: "${name}"\n\nAdd songs to it from the game app, or release it when ready!`
+        message: `✅ **Album Created!**\n\nTitle: "${name}"\n\nAdd songs to it from the game app, or release it when ready!`
       }
     }
 
@@ -500,9 +500,9 @@ async function executeGameCommand(command: string, params: any, careerId: string
 
       const cost = getStudioUpgradeCost(currentLevel)
 
-      // Check cash
-      if (state.cash < cost) {
-        return { success: false, error: `Not enough cash. Need £${cost.toLocaleString()}, have £${state.cash.toLocaleString()}` }
+      // Check cash (net_worth in ms_player_profiles)
+      if (state.net_worth < cost) {
+        return { success: false, error: `Not enough cash. Need £${cost.toLocaleString()}, have £${state.net_worth.toLocaleString()}` }
       }
 
       // Check energy
@@ -514,15 +514,20 @@ async function executeGameCommand(command: string, params: any, careerId: string
       const boost = Math.floor(Math.random() * 3) + 5
       const newLevel = Math.min(100, currentLevel + boost)
 
-      // Update studio levels (using jsonb_set for nested update)
-      const { error: studioError } = await supabase.from('ms_careers').update({
-        cash: state.cash - cost,
+      // Update studio levels - studio levels are in ms_player_profiles as individual columns
+      const studioColumnMap: Record<string, string> = {
+        'mixing': 'studio_mixing',
+        'vocals': 'studio_vocals', 
+        'mastering': 'studio_mastering',
+        'acoustics': 'studio_acoustics'
+      }
+      const dbColumn = studioColumnMap[component] || `studio_${component}`
+      
+      const { error: studioError } = await supabase.from('ms_player_profiles').update({
+        net_worth: state.net_worth - cost,
         energy: (state.energy || 0) - 4,
-        studio_levels: {
-          ...(state.studio_levels || {}),
-          [component]: newLevel
-        }
-      }).eq('id', careerId)
+        [dbColumn]: newLevel
+      }).eq('career_id', careerId)
 
       if (studioError) {
         return { success: false, error: `Failed to upgrade studio: ${studioError.message}` }
@@ -544,10 +549,11 @@ async function executeGameCommand(command: string, params: any, careerId: string
         return { success: false, error: `Song "${songTitle}" not found or already released` }
       }
 
-      // Release the song
+      // Release the song - schema uses release_status enum, not released boolean
       const { error: releaseError } = await supabase.from('ms_songs').update({
-        released: true,
-        released_at: new Date().toISOString(),
+        release_status: 'released',
+        release_week: state.current_week,
+        release_year: state.current_year,
       }).eq('id', song.id)
 
       if (releaseError) {
@@ -573,13 +579,13 @@ async function executeGameCommand(command: string, params: any, careerId: string
       // Marketing cost scales with fame
       const marketCost = Math.max(500, Math.floor((state.fame || 1) * 100))
 
-      // Check cash
-      if (state.cash < marketCost) {
-        return { success: false, error: `Not enough cash. Need £${marketCost.toLocaleString()}, have £${state.cash.toLocaleString()}` }
+      // Check cash (net_worth in ms_player_profiles)
+      if (state.net_worth < marketCost) {
+        return { success: false, error: `Not enough cash. Need £${marketCost.toLocaleString()}, have £${state.net_worth.toLocaleString()}` }
       }
 
       // Deduct cash
-      await supabase.from('ms_careers').update({ cash: state.cash - marketCost }).eq('id', careerId)
+      await supabase.from('ms_player_profiles').update({ net_worth: state.net_worth - marketCost }).eq('career_id', careerId)
 
       // Calculate marketing boost (simplified)
       const boost = Math.max(5, Math.min(35, Math.round(Math.random() * 18 + 10)))
@@ -643,7 +649,7 @@ async function executeGameCommand(command: string, params: any, careerId: string
       }
 
       // Deduct energy
-      await supabase.from('ms_careers').update({ energy: state.energy - 8 }).eq('id', careerId)
+      await supabase.from('ms_player_profiles').update({ energy: state.energy - 8 }).eq('career_id', careerId)
 
       return {
         success: true,
@@ -665,7 +671,7 @@ async function executeGameCommand(command: string, params: any, careerId: string
     case 'view_stats':
       return {
         success: true,
-        message: `📊 **${state.artist_name || 'Artist'} Stats**\n💰 Cash: £${(state.cash || 0).toLocaleString()}\n⭐ Fame: ${state.fame || 1}\n👥 Fans: ${(state.fans || 0).toLocaleString()}\n📅 Week: ${state.current_week || 1}\n🎵 Songs: ${state.songs?.length || 0}\n💿 Albums: ${state.albums?.length || 0}`
+        message: `📊 **${state.artist_name || 'Artist'} Stats**\n💰 Net Worth: £${(state.net_worth || 0).toLocaleString()}\n⭐ Fame: ${state.fame || 1}\n👥 Fans: ${(state.fans || 0).toLocaleString()}\n📅 Week: ${state.current_week || 1}\n🎵 Songs: ${state.songs?.length || 0}\n💿 Albums: ${state.albums?.length || 0}`
       }
 
     case 'advance_week':
