@@ -383,12 +383,26 @@ async function executeGameCommand(command: string, params: any, careerId: string
       // Generate song ID
       const songId = crypto.randomUUID()
 
-      // Create song (store genre as string for now, not UUID)
+      // Look up genre ID from ms_genres table
+      let genreId = null
+      if (genre) {
+        const { data: genreData } = await supabase
+          .from('ms_genres')
+          .select('id')
+          .eq('name', genre)
+          .single()
+        
+        if (genreData) {
+          genreId = genreData.id
+        }
+      }
+
+      // Create song
       const { error: songError } = await supabase.from('ms_songs').insert({
         id: songId,
         career_id: careerId,
         title,
-        genre: genre, // Store as string instead of genre_id
+        genre_id: genreId,
         is_explicit: explicit || false,
         album_id: albumId,
         created_at: new Date().toISOString(),
