@@ -922,6 +922,8 @@ async function continueSongCreation(message, input, conversation) {
 
     case 'genre':
       console.log('Genre input:', input, 'Lower:', input.toLowerCase());
+      console.log('GENRES array:', GENRES.slice(0, 10), '...');
+      console.log('Is Pop in GENRES?', GENRES.includes('pop'));
       if (!GENRES.includes(input.toLowerCase())) {
         const mainGenres = GENRE_TREE.map(g => g.genre).join(', ');
         await message.reply(`Please choose a valid genre.\nMain genres: ${mainGenres}\n(Or type any subgenre like "Trap", "Synth Pop", etc.)`);
