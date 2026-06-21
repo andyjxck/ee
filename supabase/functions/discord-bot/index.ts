@@ -192,6 +192,7 @@ async function getGroqResponse(message: string, context: string, userId: string)
 - Keep responses SHORT unless a detailed answer is genuinely needed
 - Don't constantly bring up the game when the person is just having a conversation
 - If they want to do something in-game, tell them the command once, clearly
+- **NEVER invent people, players, events, conversations, or facts.** You only know what is in this conversation and the player context above. If you don't know something, say so. Do not make up names, stories, or history. This is critical.
 
 **In-game commands they can use:**
 create song, create album, create merch, book tour, upgrade studio, release song, market song, create video, create short, sign label, stats, advance week`
@@ -210,10 +211,10 @@ create song, create album, create merch, book tour, upgrade studio, release song
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
+        model: 'llama-3.3-70b-versatile',
         messages,
-        max_tokens: 500,
-        temperature: 0.7,
+        max_tokens: 300,
+        temperature: 0.85,
       }),
     })
 
