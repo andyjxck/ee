@@ -21,6 +21,35 @@ const processingLocks = new Map();
 const replyCooldowns = new Map();
 const inFlightMessages = new Set();
 
+// Active session tracking: userId -> { channelId, lastActivity }
+// Once a user @mentions Tony, they stay active for 5 min or until action completes
+const activeSessions = new Map();
+const SESSION_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+function startSession(userId, channelId) {
+  activeSessions.set(userId, { channelId, lastActivity: Date.now() });
+}
+
+function touchSession(userId) {
+  const session = activeSessions.get(userId);
+  if (session) session.lastActivity = Date.now();
+}
+
+function endSession(userId) {
+  activeSessions.delete(userId);
+}
+
+function hasActiveSession(userId, channelId) {
+  const session = activeSessions.get(userId);
+  if (!session) return false;
+  if (session.channelId !== channelId) return false;
+  if (Date.now() - session.lastActivity > SESSION_TIMEOUT_MS) {
+    activeSessions.delete(userId);
+    return false;
+  }
+  return true;
+}
+
 // Load conversation state from database
 async function loadConversationState(userId) {
   if (!supabase) return null;
@@ -446,6 +475,7 @@ async function executeSongCreation(message, conversation) {
   const userId = message.author.id;
   conversations.delete(userId);
   await deleteConversationState(userId);
+  endSession(userId);
   const result = await callEdgeFunction('create_song', {
     userId: message.author.id,
     ...conversation.data
@@ -481,6 +511,7 @@ async function executeAlbumCreation(message, conversation) {
   const userId = message.author.id;
   conversations.delete(userId);
   await deleteConversationState(userId);
+  endSession(userId);
   const result = await callEdgeFunction('create_album', {
     userId: message.author.id,
     ...conversation.data
@@ -529,6 +560,7 @@ async function executeMerchCreation(message, conversation) {
   const userId = message.author.id;
   conversations.delete(userId);
   await deleteConversationState(userId);
+  endSession(userId);
   const result = await callEdgeFunction('create_merch', {
     userId: message.author.id,
     ...conversation.data
@@ -563,6 +595,7 @@ async function executeTourBooking(message, conversation) {
   const userId = message.author.id;
   conversations.delete(userId);
   await deleteConversationState(userId);
+  endSession(userId);
   const result = await callEdgeFunction('book_tour', {
     userId: message.author.id,
     ...conversation.data
@@ -597,6 +630,7 @@ async function executeStudioUpgrade(message, conversation) {
   const userId = message.author.id;
   conversations.delete(userId);
   await deleteConversationState(userId);
+  endSession(userId);
   const result = await callEdgeFunction('upgrade_studio', {
     userId: message.author.id,
     ...conversation.data
@@ -611,6 +645,7 @@ async function executeStudioUpgrade(message, conversation) {
 // Conversation flow handlers
 async function handleConversation(message, userMessage) {
   const userId = message.author.id;
+  touchSession(userId);
   let conversation = conversations.get(userId);
 
   // Try to load from database if not in memory
@@ -826,6 +861,7 @@ async function continueConversation(message, userMessage, conversation) {
   if (lower === 'cancel' || lower === 'stop' || lower === 'nevermind') {
     conversations.delete(userId);
     await deleteConversationState(userId);
+    endSession(userId);
     await message.reply('❌ Conversation cancelled.');
     return;
   }
@@ -853,6 +889,7 @@ async function continueConversation(message, userMessage, conversation) {
     } else if (lower === 'no' || lower === 'n') {
       conversations.delete(userId);
       await deleteConversationState(userId);
+      endSession(userId);
       await message.reply('❌ Cancelled.');
       return;
     }
@@ -893,6 +930,7 @@ async function continueConversation(message, userMessage, conversation) {
     default:
       conversations.delete(userId);
       await deleteConversationState(userId);
+      endSession(userId);
       await message.reply('Conversation reset. Try again!');
       return;
   }
@@ -1109,6 +1147,7 @@ Confirm? (yes/no)`;
     case 'confirm':
       if (input === 'yes' || input === 'y') {
         conversations.delete(userId);
+        endSession(userId);
         const result = await callEdgeFunction('create_song', {
           userId: message.author.id,
           ...conversation.data
@@ -1120,6 +1159,7 @@ Confirm? (yes/no)`;
         }
       } else {
         conversations.delete(userId);
+        endSession(userId);
         await message.reply('❌ Song creation cancelled.');
       }
       return;
@@ -1148,6 +1188,7 @@ async function continueAlbumCreation(message, input, conversation) {
     case 'confirm':
       if (input === 'yes' || input === 'y') {
         conversations.delete(userId);
+        endSession(userId);
         const result = await callEdgeFunction('create_album', {
           userId: message.author.id,
           ...conversation.data
@@ -1159,6 +1200,7 @@ async function continueAlbumCreation(message, input, conversation) {
         }
       } else {
         conversations.delete(userId);
+        endSession(userId);
         await message.reply('❌ Album creation cancelled.');
       }
       return;
@@ -1227,6 +1269,7 @@ Confirm? (yes/no)`;
     case 'confirm':
       if (input === 'yes' || input === 'y') {
         conversations.delete(userId);
+        endSession(userId);
         const result = await callEdgeFunction('create_merch', {
           userId: message.author.id,
           ...conversation.data
@@ -1238,6 +1281,7 @@ Confirm? (yes/no)`;
         }
       } else {
         conversations.delete(userId);
+        endSession(userId);
         await message.reply('❌ Merch creation cancelled.');
       }
       return;
@@ -1266,6 +1310,7 @@ async function continueTourBooking(message, input, conversation) {
     case 'confirm':
       if (input === 'yes' || input === 'y') {
         conversations.delete(userId);
+        endSession(userId);
         const result = await callEdgeFunction('book_tour', {
           userId: message.author.id,
           ...conversation.data
@@ -1277,6 +1322,7 @@ async function continueTourBooking(message, input, conversation) {
         }
       } else {
         conversations.delete(userId);
+        endSession(userId);
         await message.reply('❌ Tour booking cancelled.');
       }
       return;
@@ -1306,6 +1352,7 @@ async function continueStudioUpgrade(message, input, conversation) {
     case 'confirm':
       if (input === 'yes' || input === 'y') {
         conversations.delete(userId);
+        endSession(userId);
         const result = await callEdgeFunction('upgrade_studio', {
           userId: message.author.id,
           ...conversation.data
@@ -1317,6 +1364,7 @@ async function continueStudioUpgrade(message, input, conversation) {
         }
       } else {
         conversations.delete(userId);
+        endSession(userId);
         await message.reply('❌ Studio upgrade cancelled.');
       }
       return;
@@ -1341,6 +1389,7 @@ async function continueSongRelease(message, input, conversation) {
     case 'confirm':
       if (input === 'yes' || input === 'y') {
         conversations.delete(userId);
+        endSession(userId);
         const result = await callEdgeFunction('release_song', {
           userId: message.author.id,
           songTitle: conversation.data.songTitle
@@ -1352,6 +1401,7 @@ async function continueSongRelease(message, input, conversation) {
         }
       } else {
         conversations.delete(userId);
+        endSession(userId);
         await message.reply('❌ Release cancelled.');
       }
       return;
@@ -1376,6 +1426,7 @@ async function continueSongMarketing(message, input, conversation) {
     case 'confirm':
       if (input === 'yes' || input === 'y') {
         conversations.delete(userId);
+        endSession(userId);
         const result = await callEdgeFunction('market_song', {
           userId: message.author.id,
           songTitle: conversation.data.songTitle
@@ -1387,6 +1438,7 @@ async function continueSongMarketing(message, input, conversation) {
         }
       } else {
         conversations.delete(userId);
+        endSession(userId);
         await message.reply('❌ Marketing cancelled.');
       }
       return;
@@ -1449,6 +1501,7 @@ async function continueVideoCreation(message, input, conversation) {
     case 'confirm':
       if (input === 'yes' || input === 'y') {
         conversations.delete(userId);
+        endSession(userId);
         const result = await callEdgeFunction('create_video', {
           userId: message.author.id,
           songTitle: conversation.data.songTitle,
@@ -1461,6 +1514,7 @@ async function continueVideoCreation(message, input, conversation) {
         }
       } else {
         conversations.delete(userId);
+        endSession(userId);
         await message.reply('❌ Video creation cancelled.');
       }
       return;
@@ -1485,6 +1539,7 @@ async function continueShortCreation(message, input, conversation) {
     case 'confirm':
       if (input === 'yes' || input === 'y') {
         conversations.delete(userId);
+        endSession(userId);
         const result = await callEdgeFunction('create_short', {
           userId: message.author.id,
           songTitle: conversation.data.songTitle
@@ -1496,6 +1551,7 @@ async function continueShortCreation(message, input, conversation) {
         }
       } else {
         conversations.delete(userId);
+        endSession(userId);
         await message.reply('❌ Short creation cancelled.');
       }
       return;
@@ -1520,6 +1576,7 @@ async function continueLabelSigning(message, input, conversation) {
     case 'confirm':
       if (input === 'yes' || input === 'y') {
         conversations.delete(userId);
+        endSession(userId);
         const result = await callEdgeFunction('sign_label', {
           userId: message.author.id,
           labelName: conversation.data.labelName
@@ -1531,6 +1588,7 @@ async function continueLabelSigning(message, input, conversation) {
         }
       } else {
         conversations.delete(userId);
+        endSession(userId);
         await message.reply('❌ Label signing cancelled.');
       }
       return;
@@ -1709,9 +1767,15 @@ client.on('messageCreate', async (message) => {
     return handleConversation(message, content);
   }
 
-  // Handle server messages with bot mention
-  if (isBotMention(message)) {
-    // Remove the mention from the message
+  // Handle server messages with bot mention OR active session
+  const isMention = isBotMention(message);
+  const sessionActive = hasActiveSession(userId, message.channel.id);
+
+  if (isMention || sessionActive) {
+    // Start or refresh session on every interaction
+    startSession(userId, message.channel.id);
+
+    // Remove the mention from the message if present
     const cleanMessage = message.content.replace(BOT_MENTION_REGEX, '').trim();
 
     // Link account command
@@ -1725,19 +1789,22 @@ client.on('messageCreate', async (message) => {
           'Reply with: `/link <career_id> <any_code>`\n' +
           'Example: `/link 251 123456`'
         );
+        endSession(userId);
         return await message.reply('✅ I\'ve sent you a DM with instructions!');
       } catch (error) {
+        endSession(userId);
         return await message.reply('❌ I couldn\'t send you a DM. Please enable DMs in your privacy settings.');
       }
     }
 
     // Help command
     if (cleanMessage.toLowerCase() === 'help') {
+      endSession(userId);
       return await message.reply(getHelpMessage());
     }
 
     if (!cleanMessage) {
-      return await message.reply('Hi! I\'m Tony. Mention me with a command like: `@tony create a song` or say `@tony link my account` to connect your game.');
+      return await message.reply(`<@${userId}> What's up? Start a command or just chat. Type \`help\` to see what I can do.`);
     }
 
     // Use conversation handler for everything else
