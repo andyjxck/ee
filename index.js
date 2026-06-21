@@ -1803,6 +1803,14 @@ client.on('messageCreate', async (message) => {
       return await message.reply(getHelpMessage());
     }
 
+    // Restart command — exits process, Render auto-restarts
+    if (/^restart\s+2802$/i.test(cleanMessage.trim())) {
+      await message.reply('🔄 Restarting... back in a sec.');
+      console.log('Restart command triggered by', userId);
+      setTimeout(() => process.exit(0), 1000);
+      return;
+    }
+
     if (!cleanMessage) {
       return await message.reply(`<@${userId}> What's up? Start a command or just chat. Type \`help\` to see what I can do.`);
     }
