@@ -21,6 +21,59 @@ const processingLocks = new Map();
 const replyCooldowns = new Map();
 const inFlightMessages = new Set();
 
+// Privacy policy for Discord bot linking
+const PRIVACY_POLICY = `**Privacy Policy — Tony Discord Bot**
+*Last Updated: June 2025*
+
+**What We Collect**
+When you link your Discord account to Void Musician, we collect:
+- Your Discord User ID (to link to your game career)
+- Your Career ID (to access your game data)
+- Discord username (for display purposes only)
+
+**How We Use Your Data**
+- To link your Discord account to your Void Musician career
+- To enable game commands via Discord (create songs, view stats, etc.)
+- To provide AI chat responses via Groq API
+
+**Data Storage**
+- Discord User ID and Career ID are stored in our Supabase database (EU region)
+- Discord username is not stored persistently
+- Conversation history with the AI is stored temporarily for context
+
+**Third-Party Services**
+- **Supabase** — Database hosting (EU region)
+- **Groq API** — AI chat responses (messages sent for processing only, not stored by Groq)
+- **Discord** — Platform providing your user ID and username
+
+**Void Musician Game Data**
+By linking your account, you acknowledge that Void Musician collects:
+- Career ID & game progress (stored locally and optionally in cloud)
+- Analytics events (session start, week advanced, purchases, tutorial steps)
+- Advertising identifier (IDFA) on iOS with your ATT consent
+- AdMob may use device identifiers for personalised ads
+
+For full Void Musician privacy details, see the in-game privacy policy.
+
+**Your Rights (GDPR)**
+- **Access:** You can request a copy of your data
+- **Deletion:** Use \`/unlink\` to remove your Discord link. Delete game data via in-game Settings → Danger Zone → Delete Account
+- **Rectification:** Contact us to correct inaccurate data
+- **Objection:** You can unlink your account at any time
+
+**Data Retention**
+- Discord link data is retained until you unlink your account
+- AI conversation history is retained for 10 messages per user
+- Game data retention follows Void Musician's policy
+
+**Children**
+This service is not directed at children under 13. We do not knowingly collect data from children under 13.
+
+**Contact**
+Questions? Email: andy@theandysocial.website
+
+**By typing "accept" you confirm you have read and agree to this privacy policy.**`;
+
 // Active session tracking: userId -> { channelId, lastActivity }
 // Once a user @mentions Tony, they stay active for 5 min or until action completes
 const activeSessions = new Map();
@@ -867,8 +920,37 @@ async function continueConversation(message, userMessage, conversation) {
   }
 
   if (lower === 'help') {
-    await message.reply(getHelpMessage());
+    await message.reply(getHelpMessage(true));
     return;
+  }
+
+  // Handle privacy acceptance step
+  if (conversation.command === 'link_account' && conversation.step === 'privacy_acceptance') {
+    if (lower === 'accept' || lower === 'i accept' || lower === 'agree') {
+      // Proceed with linking
+      const result = await callEdgeFunction('link', {
+        careerId: conversation.data.careerId,
+        authCode: conversation.data.authCode,
+        discordUserId: message.author.id,
+      });
+
+      conversations.delete(userId);
+      await deleteConversationState(userId);
+      endSession(userId);
+
+      if (result.success) {
+        return await message.reply('✅ **Account linked successfully!** You can now use Tony to control your game.');
+      } else {
+        return await message.reply(`❌ **Link failed:** ${result.error}`);
+      }
+    } else if (lower === 'decline' || lower === 'no' || lower === 'i decline') {
+      conversations.delete(userId);
+      await deleteConversationState(userId);
+      endSession(userId);
+      return await message.reply('❌ **Link cancelled.** You must accept the privacy policy to link your account.');
+    } else {
+      return await message.reply('Please type **"accept"** to agree to the privacy policy and link your account, or **"decline"** to cancel.');
+    }
   }
 
   // If already at confirm step and user says yes/no, handle it
@@ -1658,16 +1740,49 @@ async function handleLinkCommand(message, args) {
     );
   }
 
-  const result = await callEdgeFunction('link', {
-    careerId: careerId.trim(),
-    authCode: authCode.trim(),
+  // Start privacy acceptance flow
+  conversations.set(message.author.id, {
+    step: 'privacy_acceptance',
+    data: {
+      careerId: careerId.trim(),
+      authCode: authCode.trim()
+    },
+    command: 'link_account'
+  });
+  await saveConversationState(message.author.id, conversations.get(message.author.id));
+
+  // Send privacy policy
+  await message.reply(PRIVACY_POLICY);
+}
+
+// Handle unlink command in DM
+async function handleUnlinkCommand(message) {
+  const result = await callEdgeFunction('unlink', {
     discordUserId: message.author.id,
   });
 
   if (result.success) {
-    return await message.reply('✅ **Account linked successfully!** You can now use Tony to control your game.');
+    return await message.reply('✅ **Account unlinked successfully!** Your Discord account is no longer connected to any game career.');
   } else {
-    return await message.reply(`❌ **Link failed:** ${result.error}`);
+    return await message.reply(`❌ **Unlink failed:** ${result.error}`);
+  }
+}
+
+// Handle linked command to show all linked career IDs
+async function handleLinkedCommand(message) {
+  const result = await callEdgeFunction('linked', {});
+
+  if (result.success) {
+    const careerIds = result.careerIds || [];
+    if (careerIds.length === 0) {
+      return await message.reply('📋 **Linked Accounts**\n\nNo accounts are currently linked.');
+    }
+    return await message.reply(
+      '📋 **Linked Accounts**\n\n' +
+      careerIds.map(id => `• ${id}`).join('\n')
+    );
+  } else {
+    return await message.reply(`❌ **Failed to fetch linked accounts:** ${result.error}`);
   }
 }
 
@@ -1751,20 +1866,51 @@ client.on('messageCreate', async (message) => {
     const content = message.content.trim();
     console.log('DM received:', content);
 
+    // Check if there's an active conversation (e.g., privacy acceptance flow)
+    let conversation = conversations.get(userId);
+    if (!conversation) {
+      conversation = await loadConversationState(userId);
+      if (conversation) {
+        conversations.set(userId, conversation);
+      }
+    }
+
+    // If in active conversation, route through conversation handler
+    if (conversation) {
+      return await handleConversation(message, content);
+    }
+
     // Link command
     if (content.toLowerCase().startsWith('/link ')) {
       const args = content.slice(6).trim();
       return handleLinkCommand(message, args);
     }
 
+    // Unlink command
+    if (content.toLowerCase() === '/unlink') {
+      return handleUnlinkCommand(message);
+    }
+
+    // Linked command (Dev Team only)
+    if (content.toLowerCase() === '/linked') {
+      return await message.reply('❌ **The `/linked` command is only available in the dev channel for users with the `Dev Team` role.**');
+    }
+
     // Help command
     if (content.toLowerCase() === '/link' || content.toLowerCase() === 'help' || content.toLowerCase() === '/help') {
       console.log('Help command matched');
-      return await message.reply(getHelpMessage());
+      return await message.reply(getHelpMessage(false));
     }
 
-    // Use conversation handler for everything else
-    return handleConversation(message, content);
+    // Only Dev Team role holders can use game commands (roles cannot be checked in DMs, so block here)
+    return await message.reply(
+      '❌ **Game commands are only available in the server for users with the `Dev Team` role.**\n\n' +
+      '*Game commands are coming soon for everyone!*\n\n' +
+      'Available here:\n' +
+      '`/link <career_id> <auth_code>` - Link your account\n' +
+      '`/unlink` - Unlink your account\n' +
+      '`help` or `/help` - Show help'
+    );
   }
 
   // Handle server messages with bot mention OR active session
@@ -1778,8 +1924,23 @@ client.on('messageCreate', async (message) => {
     // Remove the mention from the message if present
     const cleanMessage = message.content.replace(BOT_MENTION_REGEX, '').trim();
 
+    // Unlink account command (must be checked before link account)
+    if (cleanMessage.toLowerCase().includes('unlink') && cleanMessage.toLowerCase().includes('account')) {
+      try {
+        await message.author.send(
+          '🔗 **Unlink Your Account**\n\n' +
+          'To unlink your Discord account from your game, reply with: `/unlink`'
+        );
+        endSession(userId);
+        return await message.reply('✅ I\'ve sent you a DM with instructions!');
+      } catch (error) {
+        endSession(userId);
+        return await message.reply('❌ I couldn\'t send you a DM. Please enable DMs in your privacy settings.');
+      }
+    }
+
     // Link account command
-    if (cleanMessage.toLowerCase().includes('link') && cleanMessage.toLowerCase().includes('account')) {
+    if (cleanMessage.toLowerCase().includes('link') && cleanMessage.toLowerCase().includes('account') && !cleanMessage.toLowerCase().includes('unlink')) {
       try {
         await message.author.send(
           '🔗 **Link Your Account**\n\n' +
@@ -1800,7 +1961,29 @@ client.on('messageCreate', async (message) => {
     // Help command
     if (cleanMessage.toLowerCase() === 'help') {
       endSession(userId);
-      return await message.reply(getHelpMessage());
+      return await message.reply(getHelpMessage(hasDevTeamRole(message)));
+    }
+
+    // Linked command (only in specific dev channel and Dev Team role)
+    if (cleanMessage.toLowerCase() === '/linked' && message.channel.id === '1398066520747409560') {
+      if (!hasDevTeamRole(message)) {
+        endSession(userId);
+        return await message.reply('❌ **You need the `Dev Team` role to use this command.**');
+      }
+      endSession(userId);
+      return await handleLinkedCommand(message);
+    }
+
+    // All commands beyond simple account linking/unlinking and help require the Dev Team role
+    if (!hasDevTeamRole(message)) {
+      endSession(userId);
+      return await message.reply(
+        '❌ **You need the `Dev Team` role to use this command.**\n\n' +
+        '*Game commands are coming soon for everyone!*\n\n' +
+        'Anyone can use:\n' +
+        '`link account` / `unlink account` - Manage account linking\n' +
+        '`help` - Show help'
+      );
     }
 
     // Restart command — exits process, Render auto-restarts
@@ -1834,30 +2017,49 @@ function isBotMention(message) {
   return message.mentions.has(client.user);
 }
 
-function getHelpMessage() {
-  return '**🎵 Tony Bot Commands**\n\n' +
+// Check if a user has the "Dev Team" role (required for non-simple commands)
+function hasDevTeamRole(message) {
+  const member = message.member;
+  if (!member || !member.roles) return false;
+  return member.roles.cache.some(role => role.name === 'Dev Team');
+}
+
+function getHelpMessage(isDevTeam = false) {
+  let message = '**🎵 Tony Bot Commands**\n\n' +
     '**Account:**\n' +
-    '`/link <career_id> <any_code>` - Link your Discord account to your game\n\n' +
-    '**Music Creation:**\n' +
-    '`create song` - Create a new song (guided conversation)\n' +
-    '`create album` - Create a new album\n' +
-    '`release song` - Release an unreleased song\n' +
-    '`market song` - Run marketing campaign for a song\n' +
-    '`create video` - Create a music video\n' +
-    '`create short` - Create a short/TikTok\n\n' +
-    '**Merch & Tours:**\n' +
-    '`create merch` - Create new merchandise\n' +
-    '`book tour` - Book a tour\n\n' +
-    '**Studio & Label:**\n' +
-    '`upgrade studio` - Upgrade your studio equipment\n' +
-    '`sign label` - Sign with a record label\n\n' +
-    '**Progress:**\n' +
-    '`stats` or `status` - View your career stats\n' +
-    '`advance week` - Advance to the next week\n\n' +
-    '**General:**\n' +
-    '`@tony <any message>` - Chat with Tony (AI assistant)\n' +
-    '`cancel` - Cancel current conversation\n\n' +
-    '**Tip:** Just say what you want to do naturally, Tony will guide you through it!';
+    '`/link <career_id> <any_code>` - Link your Discord account to your game\n' +
+    '`/unlink` - Unlink your Discord account from your game\n';
+
+  if (isDevTeam) {
+    message += '`/linked` - View all linked career IDs\n\n' +
+      '**Music Creation:**\n' +
+      '`create song` - Create a new song (guided conversation)\n' +
+      '`create album` - Create a new album\n' +
+      '`release song` - Release an unreleased song\n' +
+      '`market song` - Run marketing campaign for a song\n' +
+      '`create video` - Create a music video\n' +
+      '`create short` - Create a short/TikTok\n\n' +
+      '**Merch & Tours:**\n' +
+      '`create merch` - Create new merchandise\n' +
+      '`book tour` - Book a tour\n\n' +
+      '**Studio & Label:**\n' +
+      '`upgrade studio` - Upgrade your studio equipment\n' +
+      '`sign label` - Sign with a record label\n\n' +
+      '**Progress:**\n' +
+      '`stats` or `status` - View your career stats\n' +
+      '`advance week` - Advance to the next week\n\n' +
+      '**General:**\n' +
+      '`@tony <any message>` - Chat with Tony (AI assistant)\n' +
+      '`cancel` - Cancel current conversation\n\n' +
+      '**Tip:** Just say what you want to do naturally, Tony will guide you through it!';
+  } else {
+    message += '\n**Note:** Game commands are only available to users with the `Dev Team` role.\n' +
+      '*Game commands are coming soon for everyone!*\n\n' +
+      '**General:**\n' +
+      '`help` - Show this help message';
+  }
+
+  return message;
 }
 
 // Bot ready

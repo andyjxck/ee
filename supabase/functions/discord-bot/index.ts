@@ -786,7 +786,63 @@ serve(async (req) => {
         headers: { 'Content-Type': 'application/json' }
       })
     }
-    
+
+    if (type === 'unlink') {
+      // Handle Discord account unlinking
+      const { discordUserId } = data
+
+      console.log('Unlink attempt:', { discordUserId })
+
+      const { data: existingLink, error: findError } = await supabase
+        .from('ms_discord_links')
+        .select('id')
+        .eq('discord_user_id', discordUserId)
+        .single()
+
+      if (findError || !existingLink) {
+        return new Response(JSON.stringify({ success: false, error: 'No linked account found' }), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 400
+        })
+      }
+
+      const { error: deleteError } = await supabase
+        .from('ms_discord_links')
+        .delete()
+        .eq('id', existingLink.id)
+
+      if (deleteError) {
+        return new Response(JSON.stringify({ success: false, error: 'Failed to unlink account' }), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 500
+        })
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
+
+    if (type === 'linked') {
+      // Handle fetching all linked career IDs
+      const { data: links, error: linksError } = await supabase
+        .from('ms_discord_links')
+        .select('career_id')
+
+      if (linksError) {
+        return new Response(JSON.stringify({ success: false, error: 'Failed to fetch linked accounts' }), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 500
+        })
+      }
+
+      const careerIds = links?.map((link: any) => link.career_id) || []
+
+      return new Response(JSON.stringify({ success: true, careerIds }), {
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
+
     if (type === 'command') {
       // Handle game commands
       const { userId, command, params } = data
