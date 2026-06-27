@@ -735,32 +735,36 @@ serve(async (req) => {
 
       console.log('Career found:', career.id)
 
-      // Validate auth code from ms_player_profiles (if set)
+      // Validate auth code from ms_player_profiles
       const { data: profileData, error: profileError } = await supabase
         .from('ms_player_profiles')
         .select('auth_code, auth_code_expires')
         .eq('career_id', career.id)
         .single()
 
-      // Only validate if profile exists and has auth_code set
-      if (!profileError && profileData && profileData.auth_code) {
-        // Check if auth code matches
-        if (profileData.auth_code !== authCode) {
-          return new Response(JSON.stringify({ success: false, error: 'Invalid auth code' }), {
-            headers: { 'Content-Type': 'application/json' },
-            status: 400
-          })
-        }
+      if (profileError || !profileData) {
+        return new Response(JSON.stringify({ success: false, error: 'Failed to validate auth code' }), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 500
+        })
+      }
 
-        // Check if auth code hasn't expired
-        const now = new Date()
-        const expiresAt = profileData.auth_code_expires ? new Date(profileData.auth_code_expires) : null
-        if (expiresAt && now > expiresAt) {
-          return new Response(JSON.stringify({ success: false, error: 'Auth code expired. Please get a new code from the game.' }), {
-            headers: { 'Content-Type': 'application/json' },
-            status: 400
-          })
-        }
+      // Check if auth code matches
+      if (profileData.auth_code !== authCode) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid auth code' }), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 400
+        })
+      }
+
+      // Check if auth code hasn't expired
+      const now = new Date()
+      const expiresAt = profileData.auth_code_expires ? new Date(profileData.auth_code_expires) : null
+      if (expiresAt && now > expiresAt) {
+        return new Response(JSON.stringify({ success: false, error: 'Auth code expired. Please get a new code from the game.' }), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 400
+        })
       }
 
       // Check if already linked - use the actual career UUID
