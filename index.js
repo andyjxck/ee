@@ -26,53 +26,52 @@ const PRIVACY_POLICY = `**Privacy Policy — Tony Discord Bot**
 *Last Updated: June 2025*
 
 **What We Collect**
-When you link your Discord account to Void Musician, we collect:
-- Your Discord User ID (to link to your game career)
-- Your Career ID (to access your game data)
-- Discord username (for display purposes only)
+- Discord User ID (to link to your game career)
+- Career ID (to access your game data)
+- Discord username (display only)
 
 **How We Use Your Data**
-- To link your Discord account to your Void Musician career
-- To enable game commands via Discord (create songs, view stats, etc.)
-- To provide AI chat responses via Groq API
+- Link Discord to Void Musician career
+- Enable game commands via Discord
+- Provide AI chat responses
 
 **Data Storage**
-- Discord User ID and Career ID are stored in our Supabase database (EU region)
-- Discord username is not stored persistently
-- Conversation history with the AI is stored temporarily for context
+- Discord User ID & Career ID stored in Supabase (EU)
+- Username not stored persistently
+- AI conversation history stored temporarily
 
 **Third-Party Services**
-- **Supabase** — Database hosting (EU region)
-- **Groq API** — AI chat responses (messages sent for processing only, not stored by Groq)
-- **Discord** — Platform providing your user ID and username
+- Supabase (database, EU)
+- Groq API (AI chat)
+- Discord (platform)
 
-**Void Musician Game Data**
-By linking your account, you acknowledge that Void Musician collects:
-- Career ID & game progress (stored locally and optionally in cloud)
-- Analytics events (session start, week advanced, purchases, tutorial steps)
-- Advertising identifier (IDFA) on iOS with your ATT consent
-- AdMob may use device identifiers for personalised ads
+**Void Musician Data**
+By linking, you acknowledge Void Musician collects:
+- Career ID & game progress
+- Analytics events
+- IDFA (iOS with ATT consent)
+- AdMob data for ads
 
-For full Void Musician privacy details, see the in-game privacy policy.
+See in-game policy for full details.
 
 **Your Rights (GDPR)**
-- **Access:** You can request a copy of your data
-- **Deletion:** Use \`/unlink\` to remove your Discord link. Delete game data via in-game Settings → Danger Zone → Delete Account
-- **Rectification:** Contact us to correct inaccurate data
-- **Objection:** You can unlink your account at any time
+- Access: Request data copy
+- Deletion: Use \`/unlink\` or in-game delete
+- Rectification: Contact to correct
+- Objection: Unlink anytime
 
 **Data Retention**
-- Discord link data is retained until you unlink your account
-- AI conversation history is retained for 10 messages per user
-- Game data retention follows Void Musician's policy
+- Link data until unlink
+- AI history: 10 messages
+- Game data: per Void Musician policy
 
 **Children**
-This service is not directed at children under 13. We do not knowingly collect data from children under 13.
+Not for under 13s.
 
 **Contact**
-Questions? Email: andy@theandysocial.website
+andy@theandysocial.website
 
-**By typing "accept" you confirm you have read and agree to this privacy policy.**`;
+**Type "accept" to agree.**`;
 
 // Active session tracking: userId -> { channelId, lastActivity }
 // Once a user @mentions Tony, they stay active for 5 min or until action completes
